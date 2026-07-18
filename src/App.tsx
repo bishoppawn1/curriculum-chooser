@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, type ChangeEvent } from "react";
 
 type Grade = "7" | "8" | "9" | "10" | "11" | "12";
 type Mode = "yearlong" | "semester";
@@ -69,6 +69,12 @@ type SavedPlan = {
   priorCourses: string[];
   diplomaType: DiplomaType;
   eligibilityChecks: Record<string, boolean>;
+};
+
+type ExportedPlan = SavedPlan & {
+  formatVersion: 1;
+  exportedAt: string;
+  activeView: "overview" | `grade-${Grade}`;
 };
 
 type PlannerSnapshot = Omit<SavedPlan, "studentName">;
@@ -661,6 +667,203 @@ export function planFileName(name: string) {
 export function pdfDocumentTitle(name: string) {
   const stem = planFileStem(name);
   return stem ? `${stem}-fcps-course-plan` : "fcps-course-plan";
+}
+
+export function pdfFileName(name: string) {
+  return `${pdfDocumentTitle(name)}.pdf`;
+}
+
+function exportedPlan(
+  studentName: string,
+  selections: Selections,
+  priorCourses: string[],
+  diplomaType: DiplomaType,
+  eligibilityChecks: Record<string, boolean>,
+  grade: Grade,
+  isOverview: boolean,
+): ExportedPlan {
+  return {
+    formatVersion: 1,
+    studentName: studentName.trim(),
+    exportedAt: new Date().toISOString(),
+    activeView: isOverview ? "overview" : `grade-${grade}`,
+    selections,
+    priorCourses,
+    diplomaType,
+    eligibilityChecks,
+  };
+}
+
+function encodeBase64Utf8(value: string) {
+  const bytes = new TextEncoder().encode(value);
+  let binary = "";
+  for (let index = 0; index < bytes.length; index += 8192) {
+    binary += String.fromCharCode(...bytes.subarray(index, index + 8192));
+  }
+  return window.btoa(binary);
+}
+
+function decodeBase64Utf8(value: string) {
+  const binary = window.atob(value);
+  const bytes = Uint8Array.from(binary, (character) => character.charCodeAt(0));
+  return new TextDecoder().decode(bytes);
+}
+
+function asciiPdfText(value: string) {
+  return value
+    .replace(/→/g, "to")
+    .replace(/[—–]/g, "-")
+    .replace(/•/g, "-")
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^\x20-\x7E]/g, "?");
+}
+
+function wrapPdfLine(value: string, maxLength = 88) {
+  const words = asciiPdfText(value).split(/\s+/).filter(Boolean);
+  const lines: string[] = [];
+  let line = "";
+  for (const word of words) {
+    if (!line) line = word;
+    else if (`${line} ${word}`.length <= maxLength) line += ` ${word}`;
+    else {
+      lines.push(line);
+      line = word;
+    }
+  }
+  if (line) lines.push(line);
+  return lines.length ? lines : [""];
+}
+
+function pdfSummaryLines(plan: ExportedPlan) {
+  const credits = plannedCreditTotals(plan.selections);
+  const requirements = graduationRequirements(plan.diplomaType, plan.selections);
+  const lines = [
+    `${plan.studentName || "Student"} - FCPS Course Plan`,
+    "Rachel Carson Middle School to Skyview High School",
+    `${plan.diplomaType === "advanced" ? "Advanced Studies" : "Standard"} Diploma - ${credits.total} planned high-school credits`,
+  ];
+
+  for (const planGrade of gradeOrder) {
+    lines.push("", `Grade ${planGrade} - ${plans[planGrade].school === "middle" ? "Rachel Carson Middle School" : "Skyview High School"}`);
+    for (const slot of plans[planGrade].slots) {
+      const value = plan.selections[planGrade]?.[slot.id] ?? emptySelection();
+      const addCourse = (term: string, courseId: string, mark: GradeMark | "") => {
+        const item = findCourse(planGrade, courseId);
+        const courseLabel = item ? `${item.label}${item.highSchoolCredit ? " - HS credit" : ""}` : "Not selected";
+        lines.push(...wrapPdfLine(`${slot.label} | ${term} | ${courseLabel} | Grade: ${mark || "-"}`));
+      };
+      if (slot.kind === "core" || value.mode === "yearlong") addCourse("Full year", value.primary, value.primaryGrade);
+      else {
+        addCourse("Fall", value.primary, value.primaryGrade);
+        addCourse("Spring", value.secondary, value.secondaryGrade);
+      }
+    }
+  }
+
+  lines.push("", "Graduation credit check");
+  requirements.forEach((requirement) => lines.push(`${requirement.label}: ${requirement.planned} planned / ${requirement.required} needed`));
+  lines.push("", "Planning aid only. Final courses and graduation status require FCPS and counselor confirmation.");
+  return lines;
+}
+
+function escapePdfString(value: string) {
+  return asciiPdfText(value).replace(/\\/g, "\\\\").replace(/\(/g, "\\(").replace(/\)/g, "\\)");
+}
+
+export function createRecoverablePdf(plan: ExportedPlan) {
+  const encodedPlan = encodeBase64Utf8(JSON.stringify(plan));
+  const recoveryLines = encodedPlan.match(/.{1,76}/g) ?? [];
+  const recoveryBlock = `%FCPS_PLAN_V1_BEGIN\n${recoveryLines.map((line) => `%${line}`).join("\n")}\n%FCPS_PLAN_V1_END\n`;
+  const summaryLines = pdfSummaryLines(plan);
+  const linesPerPage = 52;
+  const pages = Array.from({ length: Math.max(1, Math.ceil(summaryLines.length / linesPerPage)) }, (_, pageIndex) =>
+    summaryLines.slice(pageIndex * linesPerPage, (pageIndex + 1) * linesPerPage),
+  );
+  const objects: string[] = [];
+  const pageObjectIds = pages.map((_, index) => 4 + index * 2);
+  objects[1] = "<< /Type /Catalog /Pages 2 0 R >>";
+  objects[2] = `<< /Type /Pages /Kids [${pageObjectIds.map((id) => `${id} 0 R`).join(" ")}] /Count ${pages.length} >>`;
+  objects[3] = "<< /Type /Font /Subtype /Type1 /BaseFont /Helvetica >>";
+  pages.forEach((pageLines, index) => {
+    const pageObjectId = pageObjectIds[index];
+    const contentObjectId = pageObjectId + 1;
+    const commands = pageLines.map((line) => `(${escapePdfString(line)}) Tj T*`).join("\n");
+    const stream = `BT\n/F1 9 Tf\n48 750 Td\n12 TL\n${commands}\nET`;
+    objects[pageObjectId] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentObjectId} 0 R >>`;
+    objects[contentObjectId] = `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;
+  });
+
+  let pdf = `%PDF-1.4\n% FCPS Course Planner\n${recoveryBlock}`;
+  const offsets = [0];
+  for (let objectId = 1; objectId < objects.length; objectId += 1) {
+    offsets[objectId] = pdf.length;
+    pdf += `${objectId} 0 obj\n${objects[objectId]}\nendobj\n`;
+  }
+  const xrefOffset = pdf.length;
+  pdf += `xref\n0 ${objects.length}\n0000000000 65535 f \n`;
+  for (let objectId = 1; objectId < objects.length; objectId += 1) {
+    pdf += `${String(offsets[objectId]).padStart(10, "0")} 00000 n \n`;
+  }
+  pdf += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  return new Blob([pdf], { type: "application/pdf" });
+}
+
+function isRecord(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+function normalizeImportedSelections(value: unknown) {
+  const selections = emptySelections();
+  if (!isRecord(value)) return selections;
+  const validMarks = new Set<string>([...gradeMarks, ""]);
+
+  for (const planGrade of gradeOrder) {
+    const gradeValue = value[planGrade];
+    if (!isRecord(gradeValue)) continue;
+    for (const slot of plans[planGrade].slots) {
+      const selectionValue = gradeValue[slot.id];
+      if (!isRecord(selectionValue)) continue;
+      const mode = selectionValue.mode === "semester" && slot.kind === "elective" ? "semester" : "yearlong";
+      const primary = typeof selectionValue.primary === "string" ? selectionValue.primary : "";
+      const secondary = mode === "semester" && typeof selectionValue.secondary === "string" ? selectionValue.secondary : "";
+      const primaryGrade = typeof selectionValue.primaryGrade === "string" && validMarks.has(selectionValue.primaryGrade) ? selectionValue.primaryGrade as GradeMark | "" : "";
+      const secondaryGrade = typeof selectionValue.secondaryGrade === "string" && validMarks.has(selectionValue.secondaryGrade) ? selectionValue.secondaryGrade as GradeMark | "" : "";
+      selections[planGrade][slot.id] = { mode, primary, secondary, primaryGrade, secondaryGrade };
+    }
+  }
+  return selections;
+}
+
+function parseImportedPlan(value: unknown) {
+  if (!isRecord(value) || !isRecord(value.selections)) throw new Error("This file does not contain a course plan.");
+  const priorCourses = Array.isArray(value.priorCourses) ? value.priorCourses.filter((item): item is string => typeof item === "string") : [];
+  const allowedPriorCourses = new Set(priorCourseChoices.map((item) => item.id));
+  const filteredPriorCourses = priorCourses.filter((item) => allowedPriorCourses.has(item));
+  const rawEligibility = isRecord(value.eligibilityChecks) ? value.eligibilityChecks : {};
+  const eligibilityChecks = Object.fromEntries(Object.entries(rawEligibility).filter((entry): entry is [string, boolean] => typeof entry[1] === "boolean"));
+  const normalizedSelections = normalizeImportedSelections(value.selections);
+  const plan: SavedPlan = {
+    studentName: typeof value.studentName === "string" ? value.studentName.slice(0, 200) : "",
+    selections: sanitizeSelections(normalizedSelections, filteredPriorCourses),
+    priorCourses: filteredPriorCourses,
+    diplomaType: value.diplomaType === "standard" ? "standard" : "advanced",
+    eligibilityChecks,
+  };
+  const activeView = typeof value.activeView === "string" ? value.activeView : "grade-7";
+  return { plan, activeView };
+}
+
+async function importedJsonFromFile(file: File) {
+  if (file.size > 10 * 1024 * 1024) throw new Error("The selected file is larger than 10 MB.");
+  if (file.name.toLowerCase().endsWith(".pdf") || file.type === "application/pdf") {
+    const contents = new TextDecoder("latin1").decode(await file.arrayBuffer());
+    const match = contents.match(/%FCPS_PLAN_V1_BEGIN\s+([\s\S]*?)%FCPS_PLAN_V1_END/);
+    if (!match) throw new Error("Only PDFs exported by this planner can be loaded and edited.");
+    const encoded = match[1].split(/\r?\n/).map((line) => line.replace(/^%/, "")).join("").replace(/\s/g, "");
+    return decodeBase64Utf8(encoded);
+  }
+  return file.text();
 }
 
 function selectedCourseIds(grade: Grade, selections: Selections) {
@@ -1356,6 +1559,7 @@ function PrintPlan({ studentName, selections, diplomaType }: { studentName: stri
 
 export default function App() {
   const [savedPlan] = useState(loadSavedPlan);
+  const loadInputRef = useRef<HTMLInputElement>(null);
   const [studentName, setStudentName] = useState(savedPlan.studentName);
   const [grade, setGrade] = useState<Grade>("7");
   const [isOverview, setIsOverview] = useState(false);
@@ -1363,6 +1567,7 @@ export default function App() {
   const [priorCourses, setPriorCourses] = useState<string[]>(savedPlan.priorCourses);
   const [diplomaType, setDiplomaType] = useState<DiplomaType>(savedPlan.diplomaType);
   const [eligibilityChecks, setEligibilityChecks] = useState<Record<string, boolean>>(savedPlan.eligibilityChecks);
+  const [loadMessage, setLoadMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [undoStack, setUndoStack] = useState<PlannerSnapshot[]>([]);
 
   useEffect(() => {
@@ -1449,16 +1654,7 @@ export default function App() {
 
   function savePlanAsJson() {
     const fileName = planFileName(studentName);
-    const contents = JSON.stringify({
-      formatVersion: 1,
-      studentName: studentName.trim(),
-      exportedAt: new Date().toISOString(),
-      activeView: isOverview ? "overview" : "grade-" + grade,
-      selections,
-      priorCourses,
-      diplomaType,
-      eligibilityChecks,
-    }, null, 2);
+    const contents = JSON.stringify(exportedPlan(studentName, selections, priorCourses, diplomaType, eligibilityChecks, grade, isOverview), null, 2);
     const url = window.URL.createObjectURL(new Blob([contents], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
@@ -1470,11 +1666,47 @@ export default function App() {
   }
 
   function savePlanAsPdf() {
-    const previousTitle = document.title;
-    const restoreTitle = () => { document.title = previousTitle; };
-    document.title = pdfDocumentTitle(studentName);
-    window.addEventListener("afterprint", restoreTitle, { once: true });
-    window.print();
+    const planData = exportedPlan(studentName, selections, priorCourses, diplomaType, eligibilityChecks, grade, isOverview);
+    const url = window.URL.createObjectURL(createRecoverablePdf(planData));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = pdfFileName(studentName);
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => window.URL.revokeObjectURL(url), 0);
+  }
+
+  async function loadPlanFromFile(event: ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0];
+    event.target.value = "";
+    if (!file) return;
+
+    try {
+      const contents = await importedJsonFromFile(file);
+      let parsed: unknown;
+      try {
+        parsed = JSON.parse(contents);
+      } catch {
+        throw new Error("The selected file does not contain readable planner data.");
+      }
+      const imported = parseImportedPlan(parsed);
+      setStudentName(imported.plan.studentName);
+      setSelections(imported.plan.selections);
+      setPriorCourses(imported.plan.priorCourses);
+      setDiplomaType(imported.plan.diplomaType);
+      setEligibilityChecks(imported.plan.eligibilityChecks);
+      const gradeMatch = imported.activeView.match(/^grade-(7|8|9|10|11|12)$/);
+      if (imported.activeView === "overview") setIsOverview(true);
+      else {
+        setGrade((gradeMatch?.[1] as Grade | undefined) ?? "7");
+        setIsOverview(false);
+      }
+      setLoadMessage({ kind: "success", text: `${file.name} loaded. You can now edit the plan.` });
+    } catch (error) {
+      const message = error instanceof Error ? error.message : "The selected file could not be loaded.";
+      setLoadMessage({ kind: "error", text: message });
+    }
   }
 
   return (
@@ -1493,7 +1725,10 @@ export default function App() {
           </label>
           <button type="button" className="undo-button" disabled={!undoStack.length} onClick={undoLastChange}>Undo</button>
           <button type="button" className="json-save-button" disabled={!planFileStem(studentName)} onClick={savePlanAsJson}>Save plan as JSON</button>
-          <button type="button" className="print-button" onClick={savePlanAsPdf} title="Open the browser print dialog and choose Save as PDF">Save plan as PDF</button>
+          <button type="button" className="print-button" onClick={savePlanAsPdf}>Save plan as PDF</button>
+          <input ref={loadInputRef} className="sr-only" type="file" accept=".json,.pdf,application/json,application/pdf" onChange={loadPlanFromFile} />
+          <button type="button" className="load-button" onClick={() => loadInputRef.current?.click()}>Load plan</button>
+          {loadMessage && <p className={`load-message load-message-${loadMessage.kind}`} role="status">{loadMessage.text}</p>}
         </div>
         <p className="eyebrow">Rachel Carson Middle School → Skyview High School</p>
         <h1>Course Planner</h1>

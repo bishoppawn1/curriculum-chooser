@@ -26,6 +26,11 @@ main { width: min(1380px, calc(100% - 32px)); margin: 0 auto; padding: 36px 0 28
 .json-save-button:disabled { border-color: #aeb5c0; background: #e2e5ea; color: #6f7886; cursor: not-allowed; }
 .print-button { flex: none; min-height: 40px; padding: 0 14px; border: 1px solid var(--primary); border-radius: 6px; background: white; color: var(--primary); cursor: pointer; font-weight: 700; }
 .print-button:hover { background: var(--primary-soft); }
+.load-button { min-height: 40px; padding: 0 14px; border: 1px solid var(--primary); border-radius: 6px; background: white; color: var(--primary); cursor: pointer; font-weight: 700; }
+.load-button:hover { background: var(--primary-soft); }
+.load-message { flex-basis: 100%; margin: 2px 0 0; font-size: 12px; line-height: 1.4; }
+.load-message-success { color: var(--success); }
+.load-message-error { color: #8b3026; }
 .eyebrow { margin: 0 0 7px; color: var(--primary); font-size: 13px; font-weight: 700; letter-spacing: .08em; text-transform: uppercase; }
 h1 { margin: 0; font-size: clamp(30px, 5vw, 46px); line-height: 1.08; letter-spacing: -.035em; }
 .intro { margin: 12px 0 0; color: var(--muted); font-size: 16px; }
