@@ -22,6 +22,11 @@ type Course = {
   allowedGrades?: Grade[];
   gradeRestrictionReason?: string;
   eligibilityRequirements?: EligibilityRequirement[];
+  earlyPlacement?: {
+    typicalGrade: Grade;
+    anyOf: string[];
+    label: string;
+  };
   prerequisite?: {
     anyOf: string[];
     allOf?: string[][];
@@ -100,6 +105,66 @@ type RequirementRow = {
   planned: number;
 };
 
+type SourceLink = {
+  label: string;
+  url: string;
+};
+
+const sources = {
+  carsonAdvising: { label: "Rachel Carson academic advising", url: "https://carsonms.fcps.edu/student-services/academic-advising-course-selection" },
+  carsonBooklet: { label: "Rachel Carson 2026–27 course booklet", url: "https://carsonms.fcps.edu/sites/default/files/media/inline-files/26-27course%20catalog%20booklet.pdf" },
+  carsonGrade7: { label: "Rachel Carson grade 7 selection sheet", url: "https://carsonms.fcps.edu/sites/default/files/media/inline-files/CourseSelectionSheet7%20DRAFT2026-2027_0.pdf" },
+  carsonGrade8: { label: "Rachel Carson grade 8 selection sheet", url: "https://carsonms.fcps.edu/sites/default/files/media/inline-files/CourseSelectionSheet8%202026-2027_0.pdf" },
+  skyviewSchool: { label: "Skyview official school page", url: "https://www.fcps.edu/skyview" },
+  skyviewAdvising: { label: "Skyview academic advising", url: "https://skyviewhs.fcps.edu/student-services/course-selection-academic-advising" },
+  skyviewFaq: { label: "Skyview frequently asked questions", url: "https://skyviewhs.fcps.edu/about/frequently-asked-questions" },
+  courseCatalogs: { label: "FCPS course catalogs", url: "https://www.fcps.edu/academics/coursecatalogs" },
+  dualEnrollment: { label: "FCPS Dual Enrollment", url: "https://www.fcps.edu/academics/dual-enrollment" },
+  dualEnrollmentAdmissions: { label: "FCPS Dual Enrollment admissions criteria", url: "https://www.fcps.edu/academics/dual-enrollment/dual-enrollment-admissions-criteria" },
+  middleMath: { label: "FCPS middle-school mathematics", url: "https://www.fcps.edu/academics/middle/mathematics" },
+  mathSequence: { label: "FCPS mathematics course sequencing", url: "https://www.fcps.edu/academics/graduation-requirements/course-sequencing/course-sequencing-mathematics" },
+  socialStudiesSequence: { label: "FCPS social studies course sequencing", url: "https://www.fcps.edu/academics/graduation-requirements/course-sequencing/course-sequencing-social-studies" },
+  graduation: { label: "FCPS graduation requirements", url: "https://www.fcps.edu/graduation-requirements-and-course-planning/first-time-ninth-2018-19" },
+} satisfies Record<string, SourceLink>;
+
+const allSources = Object.values(sources);
+
+function uniqueSources(items: SourceLink[]) {
+  return items.filter((item, index) => items.findIndex((candidate) => candidate.url === item.url) === index);
+}
+
+function sourcesForGrade(grade: Grade) {
+  if (grade === "7") return [sources.carsonAdvising, sources.carsonBooklet, sources.carsonGrade7];
+  if (grade === "8") return [sources.carsonAdvising, sources.carsonBooklet, sources.carsonGrade8];
+  return [sources.skyviewSchool, sources.skyviewAdvising, sources.skyviewFaq, sources.courseCatalogs];
+}
+
+function sourcesForCourse(grade: Grade, item: Course, subject: string) {
+  const items = sourcesForGrade(grade);
+  if (grade === "7" || grade === "8") items.push(sources.courseCatalogs);
+  if (subject === "Math") {
+    if (grade === "7" || grade === "8") items.push(sources.middleMath);
+    items.push(sources.mathSequence);
+  }
+  if (subject === "Social Studies") items.push(sources.socialStudiesSequence);
+  if (collegeCreditDetails[item.id]) items.push(sources.dualEnrollment, sources.dualEnrollmentAdmissions);
+  return uniqueSources(items);
+}
+
+function SourceLinks({ items, label = "Sources" }: { items: SourceLink[]; label?: string }) {
+  const uniqueItems = uniqueSources(items);
+  return (
+    <details className="source-links">
+      <summary>{label} ({uniqueItems.length})</summary>
+      <ul>
+        {uniqueItems.map((item) => (
+          <li key={item.url}><a href={item.url} target="_blank" rel="noreferrer">{item.label}</a></li>
+        ))}
+      </ul>
+    </details>
+  );
+}
+
 const electiveFormats: { id: ElectiveFormat; label: string; detail: string; modes: [Mode, Mode] }[] = [
   { id: "two-yearlong", label: "2 full-year courses", detail: "One course in each elective period", modes: ["yearlong", "yearlong"] },
   { id: "mixed", label: "1 full-year + 2 semester courses", detail: "One full-year period and one split period", modes: ["yearlong", "semester"] },
@@ -129,6 +194,7 @@ const course = (id: string, label: string, extra: Omit<Course, "id" | "label"> =
 };
 const requires = (anyOf: string[], label: string) => ({ prerequisite: { anyOf, label } });
 const requiresAll = (allOf: string[][], label: string) => ({ prerequisite: { anyOf: allOf.flat(), allOf, label } });
+const earlyPlacement = (typicalGrade: Grade, anyOf: string[], label: string) => ({ earlyPlacement: { typicalGrade, anyOf, label } });
 
 const deApplicationRequirement: EligibilityRequirement = {
   id: "de-application",
@@ -416,7 +482,7 @@ const plans: Record<Grade, Plan> = {
       { id: "math", label: "Math", kind: "core", courses: [
         course("prealgebra", "Pre-Algebra"),
         course("prealgebrah", "Pre-Algebra HN"),
-        course("algebra1h", "Algebra 1 HN — school placement only", { highSchoolCredit: true }),
+        course("algebra1h", "Algebra 1 HN — school placement only", { highSchoolCredit: true, ...requires(["advancedmath6"], "Advanced Math 6 and school placement") }),
         course("geometryh", "Geometry HN", { highSchoolCredit: true, ...requires(["algebra1", "algebra1h"], "Algebra 1 HN") }),
       ] },
       { id: "science", label: "Science", kind: "core", courses: [course("science7", "Science 7"), course("science7h", "Science 7 HN"), course("science7aa", "Science 7 AA — AAP Center")] },
@@ -431,7 +497,11 @@ const plans: Record<Grade, Plan> = {
     usesElectiveFormats: true,
     note: "Rachel Carson grade 8: five core subjects and two elective periods. Later FCPS course levels remain available for exceptional placement.",
     slots: [
-      { id: "english", label: "English", kind: "core", courses: [course("english8", "English 8"), course("english8h", "English 8 HN"), course("english8aa", "English 8 AA — AAP Center")] },
+      { id: "english", label: "English", kind: "core", courses: [
+        course("english8", "English 8", earlyPlacement("8", ["english7", "english7h", "english7aa"], "English 7")),
+        course("english8h", "English 8 HN", earlyPlacement("8", ["english7", "english7h", "english7aa"], "English 7")),
+        course("english8aa", "English 8 AA — AAP Center", earlyPlacement("8", ["english7", "english7h", "english7aa"], "English 7")),
+      ] },
       { id: "math", label: "Math", kind: "core", courses: [
         course("algebra1", "Algebra 1", { highSchoolCredit: true }),
         course("algebra1h", "Algebra 1 Honors", { highSchoolCredit: true }),
@@ -443,7 +513,11 @@ const plans: Record<Grade, Plan> = {
         course("science8h", "Science 8 HN", requires(["science7", "science7h", "science7aa"], "Science 7")),
         course("science8aa", "Science 8 AA — AAP Center", requires(["science7", "science7h", "science7aa"], "Science 7")),
       ] },
-      { id: "social-studies", label: "Social Studies", kind: "core", courses: [course("civics", "Civics 8"), course("civicsh", "Civics 8 Honors"), course("civicsaa", "Civics 8 AA — AAP Center")] },
+      { id: "social-studies", label: "Social Studies", kind: "core", courses: [
+        course("civics", "Civics 8", earlyPlacement("8", ["history7", "history7h", "history7aa"], "U.S. History 7")),
+        course("civicsh", "Civics 8 Honors", earlyPlacement("8", ["history7", "history7h", "history7aa"], "U.S. History 7")),
+        course("civicsaa", "Civics 8 AA — AAP Center", earlyPlacement("8", ["history7", "history7h", "history7aa"], "U.S. History 7")),
+      ] },
       { id: "health-pe", label: "Health & PE", kind: "core", courses: [course("hpe8", "Health & PE 8")] },
       { id: "elective-1", label: "Elective 1", kind: "elective", yearlong: grade8YearlongElectives, semester: grade8SemesterElectives },
       { id: "elective-2", label: "Elective 2", kind: "elective", yearlong: grade8YearlongElectives, semester: grade8SemesterElectives },
@@ -454,7 +528,10 @@ const plans: Record<Grade, Plan> = {
     usesElectiveFormats: false,
     note: "Skyview grade 9 planning. Standard offerings are available based on enrollment for the 2026–27 opening year.",
     slots: [
-      { id: "english", label: "English", kind: "core", courses: [course("english9", "English 9", { highSchoolCredit: true }), course("english9h", "English 9 Honors", { highSchoolCredit: true })] },
+      { id: "english", label: "English", kind: "core", courses: [
+        course("english9", "English 9", { highSchoolCredit: true, ...earlyPlacement("9", ["english8", "english8h", "english8aa"], "English 8") }),
+        course("english9h", "English 9 Honors", { highSchoolCredit: true, ...earlyPlacement("9", ["english8", "english8h", "english8aa"], "English 8") }),
+      ] },
       { id: "math", label: "Math", kind: "core", courses: [
         course("algebra1", "Algebra 1", { highSchoolCredit: true }),
         course("algebra1h", "Algebra 1 Honors", { highSchoolCredit: true }),
@@ -466,7 +543,11 @@ const plans: Record<Grade, Plan> = {
         course("biology", "Biology", { highSchoolCredit: true, ...requires(["science8", "science8h", "science8aa"], "Science 8") }),
         course("biologyh", "Biology Honors", { highSchoolCredit: true, ...requires(["science8", "science8h", "science8aa"], "Science 8") }),
       ] },
-      { id: "social-studies", label: "Social Studies", kind: "core", courses: [course("world-history1", "World History & Geography 1", { highSchoolCredit: true }), course("world-history1h", "World History & Geography 1 Honors", { highSchoolCredit: true }), dualEnrollmentCourse("world-history1-de", "World History & Geography 1 DE")] },
+      { id: "social-studies", label: "Social Studies", kind: "core", courses: [
+        course("world-history1", "World History & Geography 1", { highSchoolCredit: true, ...earlyPlacement("9", ["civics", "civicsh", "civicsaa"], "Civics 8") }),
+        course("world-history1h", "World History & Geography 1 Honors", { highSchoolCredit: true, ...earlyPlacement("9", ["civics", "civicsh", "civicsaa"], "Civics 8") }),
+        dualEnrollmentCourse("world-history1-de", "World History & Geography 1 DE", earlyPlacement("9", ["civics", "civicsh", "civicsaa"], "Civics 8")),
+      ] },
       { id: "health-pe", label: "Health & PE", kind: "core", courses: [course("hpe9", "Health & PE 9", { highSchoolCredit: true })] },
       electiveSlot("elective-1", "Elective 1"),
       electiveSlot("elective-2", "Elective 2"),
@@ -477,7 +558,10 @@ const plans: Record<Grade, Plan> = {
     usesElectiveFormats: false,
     note: "Skyview grade 10 planning. Standard offerings are available based on enrollment for the 2026–27 opening year.",
     slots: [
-      { id: "english", label: "English", kind: "core", courses: [course("english10", "English 10", { highSchoolCredit: true }), course("english10h", "English 10 Honors", { highSchoolCredit: true })] },
+      { id: "english", label: "English", kind: "core", courses: [
+        course("english10", "English 10", { highSchoolCredit: true, ...earlyPlacement("10", ["english9", "english9h"], "English 9") }),
+        course("english10h", "English 10 Honors", { highSchoolCredit: true, ...earlyPlacement("10", ["english9", "english9h"], "English 9") }),
+      ] },
       { id: "math", label: "Math", kind: "core", courses: [
         course("geometry", "Geometry", { highSchoolCredit: true, ...requires(["algebra1", "algebra1h"], "Algebra 1") }),
         course("geometryh", "Geometry Honors", { highSchoolCredit: true, ...requires(["algebra1", "algebra1h"], "Algebra 1") }),
@@ -492,7 +576,12 @@ const plans: Record<Grade, Plan> = {
         course("chemistryh", "Chemistry Honors", { highSchoolCredit: true, ...requiresAll([["biology", "biologyh"], ["geometry", "geometryh"]], "Biology and Geometry; Algebra 2 must be taken concurrently") }),
         course("geosystems", "Geosystems", { highSchoolCredit: true, ...requires(["biology", "biologyh"], "Biology") }),
       ] },
-      { id: "social-studies", label: "Social Studies", kind: "core", courses: [course("world-history2", "World History & Geography 2", { highSchoolCredit: true }), course("world-history2h", "World History & Geography 2 Honors", { highSchoolCredit: true }), course("ap-world", "AP World History", { highSchoolCredit: true, gpaWeight: 1 }), dualEnrollmentCourse("world-history2-de", "World History & Geography 2 DE")] },
+      { id: "social-studies", label: "Social Studies", kind: "core", courses: [
+        course("world-history2", "World History & Geography 2", { highSchoolCredit: true, ...earlyPlacement("10", ["world-history1", "world-history1h", "world-history1-de"], "World History & Geography 1") }),
+        course("world-history2h", "World History & Geography 2 Honors", { highSchoolCredit: true, ...earlyPlacement("10", ["world-history1", "world-history1h", "world-history1-de"], "World History & Geography 1") }),
+        course("ap-world", "AP World History", { highSchoolCredit: true, gpaWeight: 1, ...earlyPlacement("10", ["world-history1", "world-history1h", "world-history1-de"], "World History & Geography 1") }),
+        dualEnrollmentCourse("world-history2-de", "World History & Geography 2 DE", earlyPlacement("10", ["world-history1", "world-history1h", "world-history1-de"], "World History & Geography 1")),
+      ] },
       { id: "health-pe", label: "Health & PE", kind: "core", courses: [course("hpe10", "Health & PE 10", { highSchoolCredit: true })] },
       electiveSlot("elective-1", "Elective 1"),
       electiveSlot("elective-2", "Elective 2"),
@@ -503,7 +592,12 @@ const plans: Record<Grade, Plan> = {
     usesElectiveFormats: false,
     note: "Future Skyview grade 11 planning. Skyview opens with grades 9–10 in 2026–27 and will add older grades as it phases in.",
     slots: [
-      { id: "english", label: "English", kind: "core", courses: [course("english11", "English 11", { highSchoolCredit: true }), course("english11h", "English 11 Honors", { highSchoolCredit: true }), course("ap-language", "AP English Language", { highSchoolCredit: true, gpaWeight: 1 }), dualEnrollmentCourse("english11-de", "English 11 DE Composition")] },
+      { id: "english", label: "English", kind: "core", courses: [
+        course("english11", "English 11", { highSchoolCredit: true, ...earlyPlacement("11", ["english10", "english10h"], "English 10") }),
+        course("english11h", "English 11 Honors", { highSchoolCredit: true, ...earlyPlacement("11", ["english10", "english10h"], "English 10") }),
+        course("ap-language", "AP English Language", { highSchoolCredit: true, gpaWeight: 1, ...earlyPlacement("11", ["english10", "english10h"], "English 10") }),
+        dualEnrollmentCourse("english11-de", "English 11 DE Composition", earlyPlacement("11", ["english10", "english10h"], "English 10")),
+      ] },
       { id: "math", label: "Math", kind: "core", courses: [
         course("algebra2", "Algebra 2", { highSchoolCredit: true, ...requires(["geometry", "geometryh"], "Geometry") }),
         course("algebra2h", "Algebra 2 Honors", { highSchoolCredit: true, ...requires(["geometry", "geometryh"], "Geometry") }),
@@ -524,7 +618,12 @@ const plans: Record<Grade, Plan> = {
         course("ap-chemistry", "AP Chemistry", { highSchoolCredit: true, gpaWeight: 1, ...requiresAll([["chemistry", "chemistryh"], ["algebra2", "algebra2h"]], "Chemistry and Algebra 2") }),
         dualEnrollmentCourse("chemistry2-de", "Chemistry 2 DE", requiresAll([["chemistry", "chemistryh"], ["algebra2", "algebra2h"]], "Chemistry, Algebra 2, and college eligibility")),
       ] },
-      { id: "social-studies", label: "Social Studies", kind: "core", courses: [course("us-history", "Virginia & U.S. History", { highSchoolCredit: true }), course("us-historyh", "Virginia & U.S. History Honors", { highSchoolCredit: true }), course("ap-us-history", "AP U.S. History", { highSchoolCredit: true, gpaWeight: 1 }), dualEnrollmentCourse("us-history-de", "Virginia & U.S. History DE")] },
+      { id: "social-studies", label: "Social Studies", kind: "core", courses: [
+        course("us-history", "Virginia & U.S. History", { highSchoolCredit: true, ...requires(["world-history1", "world-history1h", "world-history1-de", "world-history2", "world-history2h", "ap-world", "world-history2-de"], "World History & Geography 1 or 2") }),
+        course("us-historyh", "Virginia & U.S. History Honors", { highSchoolCredit: true, ...requires(["world-history1", "world-history1h", "world-history1-de", "world-history2", "world-history2h", "ap-world", "world-history2-de"], "World History & Geography 1 or 2") }),
+        course("ap-us-history", "AP U.S. History", { highSchoolCredit: true, gpaWeight: 1, ...requires(["world-history1", "world-history1h", "world-history1-de", "world-history2", "world-history2h", "ap-world", "world-history2-de"], "World History & Geography 1 or 2") }),
+        dualEnrollmentCourse("us-history-de", "Virginia & U.S. History DE", requires(["world-history1", "world-history1h", "world-history1-de", "world-history2", "world-history2h", "ap-world", "world-history2-de"], "World History & Geography 1 or 2 and college eligibility")),
+      ] },
       { id: "epf", label: "Required / Elective", kind: "core", courses: [course("epf", "Economics & Personal Finance", { highSchoolCredit: true }), course("elective-placeholder11", "Use this period for an elective", { highSchoolCredit: true })] },
       electiveSlot("elective-1", "Elective 1"),
       electiveSlot("elective-2", "Elective 2"),
@@ -535,7 +634,13 @@ const plans: Record<Grade, Plan> = {
     usesElectiveFormats: false,
     note: "Future Skyview grade 12 planning. Final offerings will be published as Skyview adds its senior class.",
     slots: [
-      { id: "english", label: "English", kind: "core", courses: [course("english12", "English 12", { highSchoolCredit: true }), course("english12h", "English 12 Honors", { highSchoolCredit: true }), course("ap-literature", "AP English Literature", { highSchoolCredit: true, gpaWeight: 1 }), dualEnrollmentCourse("english12-de-composition", "English 12 DE Composition"), dualEnrollmentCourse("english12-de-literature", "English 12 DE Literature", requires(["english11-de", "english12-de-composition"], "DE Composition and college eligibility"))] },
+      { id: "english", label: "English", kind: "core", courses: [
+        course("english12", "English 12", { highSchoolCredit: true, ...earlyPlacement("12", ["english11", "english11h", "ap-language", "english11-de"], "English 11") }),
+        course("english12h", "English 12 Honors", { highSchoolCredit: true, ...earlyPlacement("12", ["english11", "english11h", "ap-language", "english11-de"], "English 11") }),
+        course("ap-literature", "AP English Literature", { highSchoolCredit: true, gpaWeight: 1, ...earlyPlacement("12", ["english11", "english11h", "ap-language", "english11-de"], "English 11") }),
+        dualEnrollmentCourse("english12-de-composition", "English 12 DE Composition", earlyPlacement("12", ["english11", "english11h", "ap-language", "english11-de"], "English 11")),
+        dualEnrollmentCourse("english12-de-literature", "English 12 DE Literature", requires(["english11-de", "english12-de-composition"], "DE Composition and college eligibility")),
+      ] },
       { id: "math", label: "Math", kind: "core", courses: [
         course("precalculus", "Precalculus with Trigonometry", { highSchoolCredit: true, ...requires(["algebra2", "algebra2h"], "Algebra 2") }),
         course("precalculus-h", "Precalculus Honors", { highSchoolCredit: true, ...requires(["algebra2", "algebra2h"], "Algebra 2") }),
@@ -561,7 +666,12 @@ const plans: Record<Grade, Plan> = {
         course("ap-environmental", "AP Environmental Science", { highSchoolCredit: true, gpaWeight: 1, ...requiresAll([["biology", "biologyh"], ["chemistry", "chemistryh"]], "Biology and Chemistry") }),
         dualEnrollmentCourse("environmental-science-de", "Environmental Science DE", requiresAll([["biology", "biologyh"], ["chemistry", "chemistryh"]], "Biology, Chemistry, and college eligibility")),
       ] },
-      { id: "social-studies", label: "Social Studies", kind: "core", courses: [course("government", "Virginia & U.S. Government", { highSchoolCredit: true }), course("governmenth", "Virginia & U.S. Government Honors", { highSchoolCredit: true }), course("ap-government", "AP Government", { highSchoolCredit: true, gpaWeight: 1 }), dualEnrollmentCourse("government-de", "Virginia & U.S. Government DE")] },
+      { id: "social-studies", label: "Social Studies", kind: "core", courses: [
+        course("government", "Virginia & U.S. Government", { highSchoolCredit: true, ...requires(["us-history", "us-historyh", "ap-us-history", "us-history-de"], "Virginia & U.S. History") }),
+        course("governmenth", "Virginia & U.S. Government Honors", { highSchoolCredit: true, ...requires(["us-history", "us-historyh", "ap-us-history", "us-history-de"], "Virginia & U.S. History") }),
+        course("ap-government", "AP Government", { highSchoolCredit: true, gpaWeight: 1, ...requires(["us-history", "us-historyh", "ap-us-history", "us-history-de"], "Virginia & U.S. History") }),
+        dualEnrollmentCourse("government-de", "Virginia & U.S. Government DE", requires(["us-history", "us-historyh", "ap-us-history", "us-history-de"], "Virginia & U.S. History and college eligibility")),
+      ] },
       { id: "epf", label: "Economics", kind: "core", courses: [course("epf", "Economics & Personal Finance", { highSchoolCredit: true })] },
       electiveSlot("elective-1", "Elective 1"),
       electiveSlot("elective-2", "Elective 2"),
@@ -612,9 +722,22 @@ const allCourseOptions = uniqueCourses(gradeOrder.flatMap((grade) => plans[grade
 )));
 const courseById = new Map(allCourseOptions.map((item) => [item.id, item]));
 const prerequisiteIds = uniqueCourses(allCourseOptions.flatMap((item) =>
-  item.prerequisite?.anyOf.map((id) => courseById.get(id) ?? course(id, id)) ?? [],
+  [...(item.prerequisite?.anyOf ?? []), ...(item.earlyPlacement?.anyOf ?? [])].map((id) => courseById.get(id) ?? course(id, id)),
 ));
 const priorCourseChoices = uniqueCourses([course("advancedmath6", "Advanced Math 6"), ...prerequisiteIds]);
+const priorCourseGroupOrder = ["English", "Math", "Science", "Social Studies", "Health & PE", "Electives", "Other"];
+const priorCourseGroups = priorCourseGroupOrder.map((label) => ({
+  label,
+  courses: priorCourseChoices.filter((item) => {
+    if (item.id === "advancedmath6") return label === "Math";
+    const matchingSlot = plans["7"].slots.find((slot) => {
+      const options = slot.kind === "core" ? slot.courses : [...slot.yearlong, ...slot.semester];
+      return options.some((option) => option.id === item.id);
+    });
+    const subject = matchingSlot ? (matchingSlot.kind === "core" ? matchingSlot.label : "Electives") : "Other";
+    return subject === label;
+  }),
+})).filter((group) => group.courses.length > 0);
 
 const emptySelections = (): Selections => ({ "7": {}, "8": {}, "9": {}, "10": {}, "11": {}, "12": {} });
 const emptySelection = (mode: Mode = "yearlong"): Selection => ({ mode, primary: "", secondary: "", primaryGrade: "", secondaryGrade: "" });
@@ -882,6 +1005,7 @@ function unavailableReasonFor(item: Course, grade: Grade) {
   if (item.unavailableReason) return item.unavailableReason;
   if (item.allowedGrades && !item.allowedGrades.includes(grade)) return item.gradeRestrictionReason ?? `Not available in grade ${grade}`;
   if (item.prerequisite) return `requires ${item.prerequisite.label}`;
+  if (item.earlyPlacement && Number(grade) < Number(item.earlyPlacement.typicalGrade)) return `early placement requires prior ${item.earlyPlacement.label}`;
   return "unavailable";
 }
 
@@ -890,9 +1014,13 @@ function isAvailable(item: Course, grade: Grade, selections: Selections, priorCo
   if (item.allowedGrades && !item.allowedGrades.includes(grade)) return false;
   const completed = prerequisitesFor(grade, selections, priorCourses);
   additionalCompleted.forEach((courseId) => completed.add(courseId));
-  if (!item.prerequisite) return true;
-  const prerequisiteGroups = item.prerequisite.allOf ?? [item.prerequisite.anyOf];
-  return prerequisiteGroups.every((group) => group.some((required) => completed.has(required)));
+  if (item.prerequisite) {
+    const prerequisiteGroups = item.prerequisite.allOf ?? [item.prerequisite.anyOf];
+    if (!prerequisiteGroups.every((group) => group.some((required) => completed.has(required)))) return false;
+  }
+  if (item.earlyPlacement && Number(grade) < Number(item.earlyPlacement.typicalGrade)
+    && !item.earlyPlacement.anyOf.some((required) => completed.has(required))) return false;
+  return true;
 }
 
 function findCourse(grade: Grade, id: string) {
@@ -1138,12 +1266,14 @@ function explanationForCourse(item: Course) {
 function CourseSupport({
   grade,
   courseId,
+  subject,
   highSchoolCredits,
   eligibilityChecks,
   onToggleEligibility,
 }: {
   grade: Grade;
   courseId: string;
+  subject: string;
   highSchoolCredits: number;
   eligibilityChecks: Record<string, boolean>;
   onToggleEligibility: (checkId: string) => void;
@@ -1182,7 +1312,9 @@ function CourseSupport({
           <div><dt>College credit</dt><dd>{collegeCredit ? `${collegeCredit.credits} ${collegeCredit.provider} credits${collegeCredit.note ? ` • ${collegeCredit.note}` : ""}` : courseWeightDetails(item).designation === "AP" ? "Possible through AP exam; college policy varies" : "None listed"}</dd></div>
           <div><dt>Availability</dt><dd>{availability.label}</dd></div>
           <div><dt>Course prerequisite</dt><dd>{item.prerequisite?.label ?? "None listed"}</dd></div>
+          {item.earlyPlacement && <div><dt>Early-placement pre-work</dt><dd>{item.earlyPlacement.label}</dd></div>}
         </dl>
+        <SourceLinks items={sourcesForCourse(grade, item, subject)} />
       </details>
     </div>
   );
@@ -1421,7 +1553,10 @@ function PlanOverview({ selections, onEditGrade }: { selections: Selections; onE
           <p className="section-label">All grades</p>
           <h2 id="planner-title">Grade 7–12 overview</h2>
         </div>
-        <p>Review the full course path in one place. Use Edit grade to make changes.</p>
+        <div className="overview-context">
+          <p>Review the full course path in one place. Use Edit grade to make changes.</p>
+          <SourceLinks items={allSources} label="All official sources" />
+        </div>
       </div>
 
       <section className="college-gpa" aria-labelledby="college-gpa-title">
@@ -1462,6 +1597,7 @@ function PlanOverview({ selections, onEditGrade }: { selections: Selections; onE
                     {overviewPlan.school === "middle" ? "Rachel Carson Middle School" : "Skyview High School"}
                     {overviewGrade === "11" || overviewGrade === "12" ? " · Future planning" : ""}
                   </p>
+                  <SourceLinks items={sourcesForGrade(overviewGrade)} />
                 </div>
                 <div className="overview-grade-actions">
                   <p aria-label={`Grade ${overviewGrade} estimated GPA`}>
@@ -1567,8 +1703,8 @@ export default function App() {
   const [priorCourses, setPriorCourses] = useState<string[]>(savedPlan.priorCourses);
   const [diplomaType, setDiplomaType] = useState<DiplomaType>(savedPlan.diplomaType);
   const [eligibilityChecks, setEligibilityChecks] = useState<Record<string, boolean>>(savedPlan.eligibilityChecks);
-  const [loadMessage, setLoadMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [undoStack, setUndoStack] = useState<PlannerSnapshot[]>([]);
+  const [loadMessage, setLoadMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
     window.localStorage.setItem("fcps-course-plan-v2", JSON.stringify({ studentName, selections, priorCourses, diplomaType, eligibilityChecks }));
@@ -1691,6 +1827,7 @@ export default function App() {
         throw new Error("The selected file does not contain readable planner data.");
       }
       const imported = parseImportedPlan(parsed);
+      rememberCurrentPlan();
       setStudentName(imported.plan.studentName);
       setSelections(imported.plan.selections);
       setPriorCourses(imported.plan.priorCourses);
@@ -1707,6 +1844,20 @@ export default function App() {
       const message = error instanceof Error ? error.message : "The selected file could not be loaded.";
       setLoadMessage({ kind: "error", text: message });
     }
+  }
+
+  function resetPlan() {
+    if (!window.confirm("Reset the entire course plan? This clears all course selections, grades, and checklist answers saved on this device.")) return;
+
+    rememberCurrentPlan();
+    window.localStorage.removeItem("fcps-course-plan-v2");
+    window.localStorage.removeItem("rcms-course-plan-v1");
+    setSelections(emptySelections());
+    setPriorCourses([]);
+    setDiplomaType("advanced");
+    setEligibilityChecks({});
+    setGrade("7");
+    setIsOverview(false);
   }
 
   return (
@@ -1756,12 +1907,18 @@ export default function App() {
               </div>
             </div>
           </div>
+          <div className="toolbar-actions">
+            <button type="button" className="reset-button" onClick={resetPlan}>Reset plan</button>
+          </div>
         </div>
 
         {isOverview ? (
           <PlanOverview selections={selections} onEditGrade={(item) => { setGrade(item); setIsOverview(false); }} />
         ) : <>
-        <p className="grade-note" id="planner-title">{plan.note}</p>
+        <div className="grade-context">
+          <p className="grade-note" id="planner-title">{plan.note}</p>
+          <SourceLinks items={sourcesForGrade(grade)} label={`Grade ${grade} sources`} />
+        </div>
 
         <section className="gpa-panel" aria-labelledby="gpa-title">
           <p className="section-label" id="gpa-title">Estimated grade {grade} GPA</p>
@@ -1769,14 +1926,21 @@ export default function App() {
             <div className="gpa-metric">
               <span>Unweighted</span>
               <strong>{unweightedGpa.value === null ? "—" : unweightedGpa.value.toFixed(2)}</strong>
+              <div className="gpa-bar" role="progressbar" aria-label="Unweighted GPA on a 4.0 scale" aria-valuemin={0} aria-valuemax={4} aria-valuenow={unweightedGpa.value ?? 0}>
+                <span style={{ width: `${Math.min(100, ((unweightedGpa.value ?? 0) / 4) * 100)}%` }} />
+              </div>
             </div>
             <div className="gpa-metric">
               <span>Weighted</span>
               <strong>{weightedGpa.value === null ? "—" : weightedGpa.value.toFixed(2)}</strong>
+              <div className="gpa-bar gpa-bar-weighted" role="progressbar" aria-label="Weighted GPA on a 5.0 planning scale" aria-valuemin={0} aria-valuemax={5} aria-valuenow={weightedGpa.value ?? 0}>
+                <span style={{ width: `${Math.min(100, ((weightedGpa.value ?? 0) / 5) * 100)}%` }} />
+              </div>
             </div>
           </div>
           <p className="gpa-detail">{unweightedGpa.courseCount ? `${unweightedGpa.courseCount} graded ${unweightedGpa.courseCount === 1 ? "course" : "courses"} • ${unweightedGpa.credits} ${unweightedGpa.credits === 1 ? "credit" : "credits"}` : "Choose courses and add grades below."}</p>
           <p className="gpa-note">Weighted GPA adds the configured Honors, AP, or Dual Enrollment weight. Semester courses count as half a full-year course. These planning estimates are not official transcript GPAs.</p>
+          <SourceLinks items={[sources.courseCatalogs, sources.dualEnrollment]} />
         </section>
 
         <section className="graduation-panel" aria-labelledby="graduation-title">
@@ -1811,11 +1975,13 @@ export default function App() {
             </div>
           </details>
           <p className="graduation-note">Planning estimate only. FCPS also applies verified-credit, world-language sequence, advanced-course or credential, CPR/AED, virtual-course, and other diploma rules that this chart cannot fully verify.</p>
+          <SourceLinks items={[sources.graduation]} />
         </section>
 
         <details className="plan-warnings">
           <summary>Plan checks ({warnings.length})</summary>
           {warnings.length ? <ul>{warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul> : <p>No issues found in the choices entered so far.</p>}
+          <SourceLinks items={[...sourcesForGrade(grade), sources.courseCatalogs, sources.graduation, sources.dualEnrollmentAdmissions]} />
         </details>
 
         {plan.usesElectiveFormats && <fieldset className="elective-format">
@@ -1834,18 +2000,27 @@ export default function App() {
               </label>
             ))}
           </div>
+          <SourceLinks items={grade === "7" ? [sources.carsonBooklet, sources.carsonGrade7] : [sources.carsonBooklet, sources.carsonGrade8]} />
         </fieldset>}
 
         {grade === "7" && (
           <details className="prior-courses">
             <summary>Courses completed before grade 7</summary>
             <div className="prior-content">
-              <p>Record any sixth-grade, summer, transfer, or independently completed course that supports exceptional placement or satisfies a prerequisite.</p>
-              <div className="check-grid">
-                {priorCourseChoices.map((item) => (
-                  <label key={item.id}><input type="checkbox" checked={priorCourses.includes(item.id)} onChange={() => togglePriorCourse(item.id)} /> {item.label}</label>
+              <p>Record sixth-grade, summer, transfer, or independently completed work. These checks unlock defined prerequisites and courses shown earlier than their typical grade; normal grade-level open-enrollment choices remain available without them.</p>
+              <div className="prior-groups">
+                {priorCourseGroups.map((group) => (
+                  <fieldset className="prior-group" key={group.label}>
+                    <legend>{group.label}</legend>
+                    <div className="check-grid">
+                      {group.courses.map((item) => (
+                        <label key={item.id}><input type="checkbox" checked={priorCourses.includes(item.id)} onChange={() => togglePriorCourse(item.id)} /> {item.label}</label>
+                      ))}
+                    </div>
+                  </fieldset>
                 ))}
               </div>
+              <SourceLinks items={[sources.middleMath, sources.mathSequence, sources.courseCatalogs]} />
             </div>
           </details>
         )}
@@ -1872,7 +2047,7 @@ export default function App() {
                           visibleLabel={false}
                           onChange={(courseId) => updateSelection(slot.id, { primary: courseId, primaryGrade: "" })}
                         />
-                        <CourseSupport grade={grade} courseId={value.primary} highSchoolCredits={1} eligibilityChecks={eligibilityChecks} onToggleEligibility={toggleEligibility} />
+                        <CourseSupport grade={grade} courseId={value.primary} subject={slot.label} highSchoolCredits={1} eligibilityChecks={eligibilityChecks} onToggleEligibility={toggleEligibility} />
                         <label className="grade-field"><span>Grade</span><select value={value.primaryGrade ?? ""} disabled={!value.primary} onChange={(event) => updateSelection(slot.id, { primaryGrade: event.target.value as GradeMark | "" })}><option value="">No grade</option><GradeOptions /></select></label>
                       </div>
                     ) : (
@@ -1888,7 +2063,7 @@ export default function App() {
                             blockedFamilyIds={electiveFamilyIdsExcept(electiveSlots, gradeSelections, slot.id, "primary")}
                             onChange={(courseId) => updateSelection(slot.id, { primary: courseId, primaryGrade: "" })}
                           />
-                          <CourseSupport grade={grade} courseId={value.primary} highSchoolCredits={value.mode === "semester" ? 0.5 : 1} eligibilityChecks={eligibilityChecks} onToggleEligibility={toggleEligibility} />
+                          <CourseSupport grade={grade} courseId={value.primary} subject={slot.label} highSchoolCredits={value.mode === "semester" ? 0.5 : 1} eligibilityChecks={eligibilityChecks} onToggleEligibility={toggleEligibility} />
                           <label className="grade-field"><span>{value.mode === "yearlong" ? "Grade" : "Fall grade"}</span><select value={value.primaryGrade ?? ""} disabled={!value.primary} onChange={(event) => updateSelection(slot.id, { primaryGrade: event.target.value as GradeMark | "" })}><option value="">No grade</option><GradeOptions /></select></label>
                         </div>
                         {value.mode === "semester" && <div className="elective-course">
@@ -1903,7 +2078,7 @@ export default function App() {
                             blockedFamilyIds={electiveFamilyIdsExcept(electiveSlots, gradeSelections, slot.id, "secondary")}
                             onChange={(courseId) => updateSelection(slot.id, { secondary: courseId, secondaryGrade: "" })}
                           />
-                          <CourseSupport grade={grade} courseId={value.secondary} highSchoolCredits={0.5} eligibilityChecks={eligibilityChecks} onToggleEligibility={toggleEligibility} />
+                          <CourseSupport grade={grade} courseId={value.secondary} subject={slot.label} highSchoolCredits={0.5} eligibilityChecks={eligibilityChecks} onToggleEligibility={toggleEligibility} />
                           <label className="grade-field"><span>Spring grade</span><select value={value.secondaryGrade ?? ""} disabled={!value.secondary} onChange={(event) => updateSelection(slot.id, { secondaryGrade: event.target.value as GradeMark | "" })}><option value="">No grade</option><GradeOptions /></select></label>
                         </div>}
                       </div>
@@ -1921,7 +2096,7 @@ export default function App() {
 
       <footer>
         <p>Planning aid only. Final courses depend on school offerings, enrollment, prerequisites, graduation requirements, and counselor review.</p>
-        <a href={plan.school === "middle" ? "https://carsonms.fcps.edu/student-services/academic-advising-course-selection" : "https://skyviewhs.fcps.edu/student-services/course-selection-academic-advising"} target="_blank" rel="noreferrer">{plan.school === "middle" ? "Rachel Carson advising" : "Skyview advising"}</a>
+        <SourceLinks items={allSources} label="All official sources" />
       </footer>
     </main>
   );

@@ -61,6 +61,8 @@ Each high-school grade uses a compact seven-category planning chart for English,
 
 - Grade 7 checks the “completed before grade 7” list.
 - The pre-grade-7 list includes all earlier courses needed by the advanced choices shown in grade 7.
+- Group pre-grade-7 choices by subject. English early placement follows English 7 → 8 → 9 → 10 → 11 → 12, while the typical grade-level English course remains open without an early-placement check.
+- Social Studies early placement follows U.S. History 7 → Civics 8 → World History & Geography 1 → World History & Geography 2. Virginia & U.S. History requires World History & Geography 1 or 2, and Virginia & U.S. Government requires Virginia & U.S. History.
 - Each later grade checks the complete course history from all earlier grades. A prerequisite completed more than one year earlier remains valid.
 - A fall-semester course also satisfies a prerequisite for a spring-semester course in the same grade, even when the two courses use different elective periods.
 - Geometry requires Algebra 1; Algebra 2 requires Geometry; later math courses require the appropriate earlier sequence.
@@ -75,7 +77,7 @@ Each high-school grade uses a compact seven-category planning chart for English,
 
 - Every selected course must show a prominent STANDARD, HONORS, or AP designation and its weighted-GPA point modifier.
 - Honors high-school-credit courses use a +0.5 modifier and AP courses use a +1.0 modifier; middle-school Honors courses explicitly show that they have no transcript weight.
-- Show the estimated unweighted and weighted GPA at the same time; do not require the user to switch between GPA modes.
+- Show the estimated unweighted and weighted GPA at the same time; do not require the user to switch between GPA modes. Give each estimate its own labeled bar using a 4.0 unweighted scale and 5.0 weighted planning scale.
 - On Overview, show a cumulative college-facing GPA estimate using only graded high-school-credit courses across grades 7–12. Display the projected FCPS weighted GPA prominently, include an unweighted reference, and explain that individual colleges may recalculate GPA.
 - Save plans locally in the browser and do not send student data to a server.
 - Provide a “Save plan as PDF” action that downloads a readable summary of grades 7–12 and the graduation credit check. Embed the structured plan data so PDFs exported by the planner can be loaded and edited later. The suggested PDF filename must begin with the sanitized value entered in the name field.
@@ -134,12 +136,15 @@ Offerings can change because of staffing, enrollment, scheduling conflicts, supp
 9. The chart works on desktop and mobile.
 10. `npm run build` passes.
 11. Selected courses prominently show their level and exact GPA point modifier.
-12. Unweighted and weighted GPA estimates are visible simultaneously and update from the same entered grades.
+12. Unweighted and weighted GPA estimates and their separate bars are visible simultaneously and update from the same entered grades.
 13. Course prerequisites and DE eligibility checks are presented as separate concepts.
 14. Selected courses show availability, credit, and collapsed explanation details.
 15. Math uses the same single course/version/grade layout as the other required core subjects.
 16. The Standard/Advanced Studies credit table updates from selections and clearly identifies its unverified requirements.
 17. Plan checks identify missing categories, duplicate selections, unchecked eligibility, and availability uncertainty.
 18. A student cannot select the same elective course family twice within one grade.
-19. Overview prominently shows cumulative weighted and unweighted transcript GPA estimates based only on graded high-school-credit coursework.
-20. A planner-exported JSON or PDF file can be loaded into the app, restores its saved view and selections, and remains fully editable; unrelated PDFs are rejected with a clear message.
+19. The PDF/print view includes every grade from 7 through 12, entered grades, high-school-credit labels, and graduation credit totals.
+20. Entering a name such as “Eric Bishop” makes the suggested PDF filename begin with `Eric-Bishop`.
+21. Pre-grade-7 English work unlocks the next English level when it is planned earlier than its typical grade; the same checklist continues to unlock defined Math, Science, language, and elective prerequisites.
+22. Overview prominently shows cumulative weighted and unweighted transcript GPA estimates based only on graded high-school-credit coursework.
+23. A planner-exported JSON or PDF file can be loaded into the app, restores its saved view and selections, and remains fully editable; unrelated PDFs are rejected with a clear message.
