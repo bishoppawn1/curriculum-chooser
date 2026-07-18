@@ -15,7 +15,7 @@ Skyview opens in 2026–27 with grades 9 and 10. The grade 11 and 12 charts are 
 
 - Show Grade 7 and Grade 8 under a visible **Middle School** heading.
 - Show Grade 9, Grade 10, Grade 11, and Grade 12 under a visible **High School** heading.
-- Show an **Overview** tab after Grade 12 with the complete grade 7–12 plan, entered grades, and per-grade GPA estimates in one place.
+- Show an **Overview** tab after Grade 12 with the complete grade 7–12 plan, entered grades, per-grade GPA estimates, and a prominent projected FCPS transcript GPA in one place.
 - Use a short, subject-first grid with each course category directly above its selector.
 - Select the base course first. When it has multiple versions, show a second **Version** dropdown immediately below it for Standard, Honors, AAP Center, AP, or another published version.
 - Do not list Standard and Honors as unrelated courses in the first dropdown. For example, list “Algebra 2” once, then offer Standard and Honors in its Version dropdown.
@@ -76,6 +76,7 @@ Each high-school grade uses a compact seven-category planning chart for English,
 - Every selected course must show a prominent STANDARD, HONORS, or AP designation and its weighted-GPA point modifier.
 - Honors high-school-credit courses use a +0.5 modifier and AP courses use a +1.0 modifier; middle-school Honors courses explicitly show that they have no transcript weight.
 - Show the estimated unweighted and weighted GPA at the same time; do not require the user to switch between GPA modes.
+- On Overview, show a cumulative college-facing GPA estimate using only graded high-school-credit courses across grades 7–12. Display the projected FCPS weighted GPA prominently, include an unweighted reference, and explain that individual colleges may recalculate GPA.
 - Save plans locally in the browser and do not send student data to a server.
 - Run as a standalone React/Vite static app.
 - Do not use ChatGPT Sites, Vinext, Next.js, or Cloudflare Workers.
@@ -114,6 +115,7 @@ Each high-school grade uses a compact seven-category planning chart for English,
 - FCPS Dual Enrollment: `https://www.fcps.edu/academics/dual-enrollment`
 - FCPS Dual Enrollment admissions criteria: `https://www.fcps.edu/academics/dual-enrollment/dual-enrollment-admissions-criteria`
 - FCPS graduation requirements for students entering grade 9 in 2018–19 or later: `https://www.fcps.edu/graduation-requirements-and-course-planning/first-time-ninth-2018-19`
+- FCPS Postsecondary Profile and transcript GPA rules: `https://www.fcps.edu/about-fcps/leadership/district-performance-transparency/postsecondary-profile`
 
 Offerings can change because of staffing, enrollment, scheduling conflicts, support placement, graduation requirements, and counselor review.
 
@@ -137,3 +139,4 @@ Offerings can change because of staffing, enrollment, scheduling conflicts, supp
 16. The Standard/Advanced Studies credit table updates from selections and clearly identifies its unverified requirements.
 17. Plan checks identify missing categories, duplicate selections, unchecked eligibility, and availability uncertainty.
 18. A student cannot select the same elective course family twice within one grade.
+19. Overview prominently shows cumulative weighted and unweighted transcript GPA estimates based only on graded high-school-credit coursework.

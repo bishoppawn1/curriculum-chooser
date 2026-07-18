@@ -865,6 +865,38 @@ export function calculateGpa(grade: Grade, gradeSelections: Record<string, Selec
   return { value: credits ? qualityPoints / credits : null, credits, courseCount };
 }
 
+export function calculateTranscriptGpa(selections: Selections, gpaMode: GpaMode) {
+  let qualityPoints = 0;
+  let credits = 0;
+  let courseCount = 0;
+
+  const includeCourse = (grade: Grade, courseId: string, mark: GradeMark | "" | undefined, credit: number) => {
+    if (!courseId || !mark) return;
+    const selectedCourse = findCourse(grade, courseId);
+    if (!selectedCourse?.highSchoolCredit) return;
+    const basePoints = gradePoints[mark];
+    const weight = gpaMode === "weighted" && basePoints > 0 ? selectedCourse.gpaWeight ?? 0 : 0;
+    qualityPoints += (basePoints + weight) * credit;
+    credits += credit;
+    courseCount += 1;
+  };
+
+  for (const grade of gradeOrder) {
+    for (const slot of plans[grade].slots) {
+      const value = selections[grade]?.[slot.id];
+      if (!value) continue;
+      if (slot.kind === "core" || value.mode === "yearlong") {
+        includeCourse(grade, value.primary, value.primaryGrade, 1);
+      } else {
+        includeCourse(grade, value.primary, value.primaryGrade, 0.5);
+        includeCourse(grade, value.secondary, value.secondaryGrade, 0.5);
+      }
+    }
+  }
+
+  return { value: credits ? qualityPoints / credits : null, credits, courseCount };
+}
+
 function availabilityDetails(grade: Grade, item: Course) {
   if (collegeCreditDetails[item.id]) return { label: "FCPS DE • Skyview availability unconfirmed", className: "unconfirmed" };
   if (grade === "7" || grade === "8") {
@@ -1176,6 +1208,9 @@ function CoursePicker({
 }
 
 function PlanOverview({ selections, onEditGrade }: { selections: Selections; onEditGrade: (grade: Grade) => void }) {
+  const transcriptUnweighted = calculateTranscriptGpa(selections, "unweighted");
+  const transcriptWeighted = calculateTranscriptGpa(selections, "weighted");
+
   return (
     <section className="overview" aria-labelledby="planner-title">
       <div className="overview-heading">
@@ -1185,6 +1220,28 @@ function PlanOverview({ selections, onEditGrade }: { selections: Selections; onE
         </div>
         <p>Review the full course path in one place. Use Edit grade to make changes.</p>
       </div>
+
+      <section className="college-gpa" aria-labelledby="college-gpa-title">
+        <div className="college-gpa-heading">
+          <div>
+            <p className="section-label">College-facing GPA estimate</p>
+            <h3 id="college-gpa-title">Projected FCPS transcript GPA</h3>
+          </div>
+          <p>{transcriptWeighted.courseCount ? `${transcriptWeighted.courseCount} graded high-school-credit ${transcriptWeighted.courseCount === 1 ? "course" : "courses"} • ${transcriptWeighted.credits} ${transcriptWeighted.credits === 1 ? "credit" : "credits"}` : "Add grades to high-school-credit courses to calculate this estimate."}</p>
+        </div>
+        <div className="college-gpa-values" aria-live="polite">
+          <div className="college-gpa-primary">
+            <span>FCPS weighted GPA</span>
+            <strong>{transcriptWeighted.value === null ? "—" : transcriptWeighted.value.toFixed(2)}</strong>
+            <small>Reported GPA estimate</small>
+          </div>
+          <div className="college-gpa-secondary">
+            <span>Unweighted reference</span>
+            <strong>{transcriptUnweighted.value === null ? "—" : transcriptUnweighted.value.toFixed(2)}</strong>
+          </div>
+        </div>
+        <p className="college-gpa-note">Includes graded high-school-credit courses planned in grades 7–12; semester courses count as half credit. Colleges receive the transcript, but each college may recalculate GPA using its own rules.</p>
+      </section>
 
       <div className="overview-grades">
         {gradeOrder.map((overviewGrade) => {

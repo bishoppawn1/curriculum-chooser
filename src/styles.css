@@ -44,6 +44,21 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 46px); line-height: 1.08; letter-spa
 .overview-heading .section-label { margin: 0 0 4px; }
 .overview-heading h2 { margin: 0; font-size: 22px; }
 .overview-heading > p { max-width: 480px; margin: 0; color: var(--muted); font-size: 13px; line-height: 1.45; text-align: right; }
+.college-gpa { margin: 16px 18px; padding: 16px; border: 2px solid var(--primary); border-radius: 7px; }
+.college-gpa-heading { display: flex; align-items: end; justify-content: space-between; gap: 24px; }
+.college-gpa-heading .section-label { margin: 0 0 4px; }
+.college-gpa-heading h3 { margin: 0; font-size: 20px; }
+.college-gpa-heading > p { max-width: 450px; margin: 0; color: var(--muted); font-size: 12px; line-height: 1.4; text-align: right; }
+.college-gpa-values { display: flex; align-items: stretch; gap: 10px; margin-top: 14px; }
+.college-gpa-primary, .college-gpa-secondary { padding: 11px 13px; border: 1px solid var(--border); border-radius: 6px; }
+.college-gpa-primary { min-width: 210px; background: var(--primary-soft); }
+.college-gpa-secondary { min-width: 170px; }
+.college-gpa-primary span, .college-gpa-secondary span, .college-gpa-primary small { display: block; }
+.college-gpa-primary span, .college-gpa-secondary span { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+.college-gpa-primary strong { display: block; margin-top: 2px; font-size: 38px; letter-spacing: -.04em; }
+.college-gpa-secondary strong { display: block; margin-top: 6px; font-size: 25px; }
+.college-gpa-primary small { color: var(--primary); font-size: 10px; font-weight: 700; }
+.college-gpa-note { margin: 10px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
 .overview-grades { display: grid; }
 .overview-grade { padding: 16px 18px 18px; border-top: 1px solid var(--border); }
 .overview-grade:first-child { border-top: 0; }
@@ -168,6 +183,10 @@ footer a { flex: none; color: var(--primary); font-weight: 700; }
   .graduation-heading { align-items: stretch; flex-direction: column; gap: 12px; }
   .overview-heading { align-items: flex-start; flex-direction: column; gap: 7px; }
   .overview-heading > p { text-align: left; }
+  .college-gpa-heading { align-items: flex-start; flex-direction: column; gap: 7px; }
+  .college-gpa-heading > p { text-align: left; }
+  .college-gpa-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .college-gpa-primary, .college-gpa-secondary { min-width: 0; }
   .overview-course-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .overview-course { border-bottom: 1px solid var(--border); }
   .overview-course:nth-child(2n) { border-right: 0; }
@@ -185,6 +204,7 @@ footer a { flex: none; color: var(--primary); font-weight: 700; }
   .check-grid { grid-template-columns: 1fr; }
   .overview-grade-heading { align-items: flex-start; flex-direction: column; }
   .overview-grade-actions { width: 100%; justify-content: space-between; }
+  .college-gpa-values { grid-template-columns: 1fr; }
   .overview-course-grid { grid-template-columns: 1fr; }
   .overview-course { border-right: 0; }
   .course-grid { grid-template-columns: 1fr; }
