@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, type ChangeEvent } from "react";
 
 type Grade = "7" | "8" | "9" | "10" | "11" | "12";
 type Mode = "yearlong" | "semester";
+type SelectionField = "primary" | "secondary";
 type ElectiveFormat = "two-yearlong" | "mixed" | "four-semester";
 type GpaMode = "unweighted" | "weighted";
 type DiplomaType = "standard" | "advanced";
@@ -71,6 +72,7 @@ type Selections = Record<Grade, Record<string, Selection>>;
 type SavedPlan = {
   studentName: string;
   selections: Selections;
+  lockedSelections: Record<string, boolean>;
   priorCourses: string[];
   priorCourseGrades: Record<string, GradeMark | "">;
   diplomaType: DiplomaType;
@@ -748,10 +750,32 @@ function priorCourseReceivesGrade(item: Course) {
 const emptySelections = (): Selections => ({ "7": {}, "8": {}, "9": {}, "10": {}, "11": {}, "12": {} });
 const emptySelection = (mode: Mode = "yearlong"): Selection => ({ mode, primary: "", secondary: "", primaryGrade: "", secondaryGrade: "" });
 
+export function selectionLockKey(grade: Grade, slotId: string, field: SelectionField) {
+  return `${grade}:${slotId}:${field}`;
+}
+
+function sanitizeLockedSelections(lockedSelections: Record<string, boolean>, selections: Selections) {
+  const validLocks: Record<string, boolean> = {};
+  for (const grade of gradeOrder) {
+    for (const slot of plans[grade].slots) {
+      const value = selections[grade]?.[slot.id];
+      if (!value) continue;
+      const primaryKey = selectionLockKey(grade, slot.id, "primary");
+      if (lockedSelections[primaryKey] && value.primary) validLocks[primaryKey] = true;
+      const secondaryKey = selectionLockKey(grade, slot.id, "secondary");
+      if (slot.kind === "elective" && value.mode === "semester" && lockedSelections[secondaryKey] && value.secondary) {
+        validLocks[secondaryKey] = true;
+      }
+    }
+  }
+  return validLocks;
+}
+
 function loadSavedPlan(): SavedPlan {
   const emptyPlan: SavedPlan = {
     studentName: "",
     selections: emptySelections(),
+    lockedSelections: {},
     priorCourses: [],
     priorCourseGrades: {},
     diplomaType: "advanced",
@@ -771,10 +795,11 @@ function loadSavedPlan(): SavedPlan {
       && Boolean(courseById.get(courseId) && priorCourseReceivesGrade(courseById.get(courseId)!))
       && (mark === "" || gradeMarks.includes(mark as GradeMark)),
     )) as Record<string, GradeMark | "">;
-    const selections = { ...emptySelections(), ...(data.selections ?? {}) };
+    const selections = sanitizeSelections({ ...emptySelections(), ...(data.selections ?? {}) }, priorCourses);
     return {
       studentName: data.studentName ?? "",
-      selections: sanitizeSelections(selections, priorCourses),
+      selections,
+      lockedSelections: sanitizeLockedSelections(data.lockedSelections ?? {}, selections),
       priorCourses,
       priorCourseGrades,
       diplomaType: data.diplomaType === "standard" ? "standard" : "advanced",
@@ -826,6 +851,7 @@ export function pdfFileName(name: string, savedAt: Date = new Date()) {
 function exportedPlan(
   studentName: string,
   selections: Selections,
+  lockedSelections: Record<string, boolean>,
   priorCourses: string[],
   priorCourseGrades: Record<string, GradeMark | "">,
   diplomaType: DiplomaType,
@@ -841,6 +867,7 @@ function exportedPlan(
     exportedAt: savedAt.toISOString(),
     activeView: isOverview ? "overview" : `grade-${grade}`,
     selections,
+    lockedSelections,
     priorCourses,
     priorCourseGrades,
     diplomaType,
@@ -1015,10 +1042,14 @@ function parseImportedPlan(value: unknown) {
   ));
   const rawEligibility = isRecord(value.eligibilityChecks) ? value.eligibilityChecks : {};
   const eligibilityChecks = Object.fromEntries(Object.entries(rawEligibility).filter((entry): entry is [string, boolean] => typeof entry[1] === "boolean"));
-  const normalizedSelections = normalizeImportedSelections(value.selections);
+  const normalizedSelections = sanitizeSelections(normalizeImportedSelections(value.selections), filteredPriorCourses);
+  const rawLockedSelections = isRecord(value.lockedSelections)
+    ? Object.fromEntries(Object.entries(value.lockedSelections).filter((entry): entry is [string, boolean] => entry[1] === true))
+    : {};
   const plan: SavedPlan = {
     studentName: typeof value.studentName === "string" ? value.studentName.slice(0, 200) : "",
-    selections: sanitizeSelections(normalizedSelections, filteredPriorCourses),
+    selections: normalizedSelections,
+    lockedSelections: sanitizeLockedSelections(rawLockedSelections, normalizedSelections),
     priorCourses: filteredPriorCourses,
     priorCourseGrades,
     diplomaType: value.diplomaType === "standard" ? "standard" : "advanced",
@@ -1174,6 +1205,171 @@ export function sanitizeSelections(selections: Selections, priorCourses: string[
     }
   }
   return next;
+}
+
+function courseDependencyIds(item: Course) {
+  return [...new Set([
+    ...(item.prerequisite?.anyOf ?? []),
+    ...(item.earlyPlacement?.anyOf ?? []),
+  ])];
+}
+
+function prerequisiteClosure(courseIds: string[]) {
+  const dependencies = new Set<string>();
+  const visit = (courseId: string) => {
+    const item = courseById.get(courseId);
+    if (!item) return;
+    for (const dependencyId of courseDependencyIds(item)) {
+      if (dependencies.has(dependencyId)) continue;
+      dependencies.add(dependencyId);
+      visit(dependencyId);
+    }
+  };
+  courseIds.forEach(visit);
+  return dependencies;
+}
+
+function previousGradeIds(grade: Grade, selections: Selections) {
+  const gradeIndex = gradeOrder.indexOf(grade);
+  return gradeIndex > 0 ? selectedCourseIds(gradeOrder[gradeIndex - 1], selections) : new Set<string>();
+}
+
+function isSequentialFamilyStep(item: Course, completed: Set<string>) {
+  const familyId = courseFamilyId(item.id);
+  return courseDependencyIds(item).some((dependencyId) =>
+    completed.has(dependencyId) && courseFamilyId(dependencyId) === familyId,
+  );
+}
+
+function lockedCourseEntries(selections: Selections, lockedSelections: Record<string, boolean>) {
+  const entries: { grade: Grade; courseId: string }[] = [];
+  for (const grade of gradeOrder) {
+    for (const slot of plans[grade].slots) {
+      const value = selections[grade]?.[slot.id];
+      if (!value) continue;
+      if (value.primary && lockedSelections[selectionLockKey(grade, slot.id, "primary")]) {
+        entries.push({ grade, courseId: value.primary });
+      }
+      if (slot.kind === "elective" && value.mode === "semester" && value.secondary
+        && lockedSelections[selectionLockKey(grade, slot.id, "secondary")]) {
+        entries.push({ grade, courseId: value.secondary });
+      }
+    }
+  }
+  return entries;
+}
+
+export function autofillSelections(
+  selections: Selections,
+  priorCourses: string[],
+  lockedSelections: Record<string, boolean> = {},
+) {
+  const original = structuredClone(selections);
+  const next = emptySelections();
+  const lockedEntries = lockedCourseEntries(original, lockedSelections);
+  const lockedDependencies = prerequisiteClosure(lockedEntries.map((entry) => entry.courseId));
+
+  for (const grade of gradeOrder) {
+    for (const slot of plans[grade].slots) {
+      const existing = original[grade]?.[slot.id] ?? emptySelection();
+      const mode = slot.kind === "elective" ? existing.mode : "yearlong";
+      const primaryLocked = Boolean(existing.primary && lockedSelections[selectionLockKey(grade, slot.id, "primary")]);
+      const secondaryLocked = Boolean(slot.kind === "elective" && mode === "semester" && existing.secondary
+        && lockedSelections[selectionLockKey(grade, slot.id, "secondary")]);
+      next[grade][slot.id] = {
+        mode,
+        primary: primaryLocked ? existing.primary : "",
+        secondary: secondaryLocked ? existing.secondary : "",
+        primaryGrade: primaryLocked ? existing.primaryGrade : "",
+        secondaryGrade: secondaryLocked ? existing.secondaryGrade : "",
+      };
+    }
+  }
+
+  const chooseCourse = (
+    grade: Grade,
+    slot: Slot,
+    field: SelectionField,
+    options: Course[],
+    additionalCompleted: string[] = [],
+  ) => {
+    const value = next[grade][slot.id];
+    const lockKey = selectionLockKey(grade, slot.id, field);
+    const lockedCourseId = lockedSelections[lockKey] ? value[field] : "";
+    const lockedCourse = lockedCourseId ? options.find((item) => item.id === lockedCourseId) : undefined;
+    if (lockedCourse && isAvailable(lockedCourse, grade, next, priorCourses, additionalCompleted)) return;
+
+    const completed = prerequisitesFor(grade, next, priorCourses);
+    additionalCompleted.forEach((courseId) => completed.add(courseId));
+    const completedFamilies = new Set([...completed].map(courseFamilyId));
+    const priorGradeCourses = previousGradeIds(grade, next);
+    const existingPreference = slot.kind === "elective" ? original[grade]?.[slot.id]?.[field] ?? "" : "";
+    const usedElectiveFamilies = slot.kind === "elective"
+      ? new Set(electiveFamilyIdsExcept(
+        plans[grade].slots.filter((candidate): candidate is ElectiveSlot => candidate.kind === "elective"),
+        next[grade],
+        slot.id,
+        field,
+      ))
+      : new Set<string>();
+    const currentGradeIndex = gradeOrder.indexOf(grade);
+
+    const candidates = options.filter((item) => {
+      if (!isAvailable(item, grade, next, priorCourses, additionalCompleted)) return false;
+      if (slot.kind === "elective" && usedElectiveFamilies.has(courseFamilyId(item.id))) return false;
+      if (completed.has(item.id)) return false;
+      if (completedFamilies.has(courseFamilyId(item.id)) && !isSequentialFamilyStep(item, completed)) return false;
+      const reservedForFutureLock = lockedEntries.some((entry) =>
+        gradeOrder.indexOf(entry.grade) > currentGradeIndex
+        && courseFamilyId(entry.courseId) === courseFamilyId(item.id),
+      );
+      return !reservedForFutureLock || lockedDependencies.has(item.id);
+    });
+
+    const ranked = candidates.map((item, index) => {
+      const dependencies = courseDependencyIds(item);
+      const sequenceFromPreviousGrade = dependencies.some((dependencyId) => priorGradeCourses.has(dependencyId));
+      const sequenceFromEarlierWork = dependencies.some((dependencyId) => completed.has(dependencyId));
+      const reservedForLaterRequiredSlot = slot.kind === "core" && gradeOrder.slice(currentGradeIndex + 1).some((laterGrade) => {
+        const laterSlot = plans[laterGrade].slots.find((candidate) => candidate.kind === "core" && candidate.id === slot.id);
+        return Boolean(laterSlot && laterSlot.kind === "core" && groupCourseFamilies(laterSlot.courses).length === 1
+          && laterSlot.courses.some((candidate) => candidate.id === item.id));
+      });
+      const score =
+        (lockedDependencies.has(item.id) ? 80_000 : 0)
+        + (existingPreference === item.id ? 60_000 : 0)
+        + (sequenceFromPreviousGrade ? 45_000 : 0)
+        + (sequenceFromEarlierWork ? 35_000 : 0)
+        + (publishedPlanCourseIds[grade].has(item.id) ? 30_000 : 0)
+        + ((item.gpaWeight ?? 0) * 1_000)
+        + (item.highSchoolCredit ? 100 : 0)
+        - (reservedForLaterRequiredSlot ? 70_000 : 0)
+        - (index / 1_000);
+      return { item, score };
+    }).sort((left, right) => right.score - left.score);
+
+    const chosen = ranked[0]?.item;
+    const previousCourseId = original[grade]?.[slot.id]?.[field] ?? "";
+    const gradeField = field === "primary" ? "primaryGrade" : "secondaryGrade";
+    next[grade][slot.id] = {
+      ...value,
+      [field]: chosen?.id ?? "",
+      [gradeField]: chosen?.id === previousCourseId ? original[grade]?.[slot.id]?.[gradeField] ?? "" : "",
+    };
+  };
+
+  for (const grade of gradeOrder) {
+    for (const slot of plans[grade].slots) {
+      const value = next[grade][slot.id];
+      const primaryOptions = slot.kind === "core" ? slot.courses : value.mode === "yearlong" ? slot.yearlong : slot.semester;
+      chooseCourse(grade, slot, "primary", primaryOptions);
+      if (slot.kind === "elective" && value.mode === "semester") {
+        chooseCourse(grade, slot, "secondary", slot.semester, fallSemesterCourseIds(next[grade]));
+      }
+    }
+  }
+
+  return sanitizeSelections(next, priorCourses);
 }
 
 function GradeOptions() {
@@ -1529,6 +1725,32 @@ function sortedVersions(courses: Course[]) {
   return [...courses].sort((left, right) => priority(left) - priority(right));
 }
 
+function SelectionLockButton({
+  locked,
+  disabled,
+  label,
+  onToggle,
+}: {
+  locked: boolean;
+  disabled: boolean;
+  label: string;
+  onToggle: () => void;
+}) {
+  return (
+    <button
+      type="button"
+      className={`selection-lock${locked ? " selection-lock-active" : ""}`}
+      aria-pressed={locked}
+      aria-label={`${locked ? "Unlock" : "Lock"} ${label}`}
+      title={locked ? "Autofill will keep this course" : "Keep this course during autofill"}
+      disabled={disabled}
+      onClick={onToggle}
+    >
+      {locked ? "Locked" : "Lock"}
+    </button>
+  );
+}
+
 function CoursePicker({
   courses,
   grade,
@@ -1794,16 +2016,18 @@ export default function App() {
   const [grade, setGrade] = useState<Grade>("7");
   const [isOverview, setIsOverview] = useState(false);
   const [selections, setSelections] = useState<Selections>(savedPlan.selections);
+  const [lockedSelections, setLockedSelections] = useState<Record<string, boolean>>(savedPlan.lockedSelections);
   const [priorCourses, setPriorCourses] = useState<string[]>(savedPlan.priorCourses);
   const [priorCourseGrades, setPriorCourseGrades] = useState<Record<string, GradeMark | "">>(savedPlan.priorCourseGrades);
   const [diplomaType, setDiplomaType] = useState<DiplomaType>(savedPlan.diplomaType);
   const [eligibilityChecks, setEligibilityChecks] = useState<Record<string, boolean>>(savedPlan.eligibilityChecks);
   const [undoStack, setUndoStack] = useState<PlannerSnapshot[]>([]);
   const [loadMessage, setLoadMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
+  const [autofillMessage, setAutofillMessage] = useState("");
 
   useEffect(() => {
-    window.localStorage.setItem("fcps-course-plan-v2", JSON.stringify({ studentName, selections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks }));
-  }, [studentName, selections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks]);
+    window.localStorage.setItem("fcps-course-plan-v2", JSON.stringify({ studentName, selections, lockedSelections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks }));
+  }, [studentName, selections, lockedSelections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks]);
 
   const plan = plans[grade];
   const gradeSelections = selections[grade] ?? {};
@@ -1820,6 +2044,7 @@ export default function App() {
   function rememberCurrentPlan() {
     const snapshot: PlannerSnapshot = {
       selections: structuredClone(selections),
+      lockedSelections: { ...lockedSelections },
       priorCourses: [...priorCourses],
       priorCourseGrades: { ...priorCourseGrades },
       diplomaType,
@@ -1833,6 +2058,7 @@ export default function App() {
     if (!previous) return;
 
     setSelections(structuredClone(previous.selections));
+    setLockedSelections({ ...previous.lockedSelections });
     setPriorCourses([...previous.priorCourses]);
     setPriorCourseGrades({ ...previous.priorCourseGrades });
     setDiplomaType(previous.diplomaType);
@@ -1842,6 +2068,14 @@ export default function App() {
 
   function updateSelection(slotId: string, patch: Partial<Selection>) {
     rememberCurrentPlan();
+    if (patch.primary === "" || patch.secondary === "") {
+      setLockedSelections((current) => {
+        const next = { ...current };
+        if (patch.primary === "") delete next[selectionLockKey(grade, slotId, "primary")];
+        if (patch.secondary === "") delete next[selectionLockKey(grade, slotId, "secondary")];
+        return next;
+      });
+    }
     setSelections((current) => {
       const existing = current[grade]?.[slotId] ?? emptySelection();
       const updated = {
@@ -1857,6 +2091,18 @@ export default function App() {
     if (!formatModes) return;
 
     rememberCurrentPlan();
+    setLockedSelections((current) => {
+      const next = { ...current };
+      electiveSlots.forEach((slot, index) => {
+        const existing = selections[grade]?.[slot.id] ?? emptySelection();
+        const mode = formatModes[index] ?? formatModes[formatModes.length - 1];
+        if (existing.mode !== mode) {
+          delete next[selectionLockKey(grade, slot.id, "primary")];
+          delete next[selectionLockKey(grade, slot.id, "secondary")];
+        }
+      });
+      return next;
+    });
     setSelections((current) => {
       const nextGrade = { ...current[grade] };
       electiveSlots.forEach((slot, index) => {
@@ -1897,10 +2143,26 @@ export default function App() {
     setDiplomaType(nextDiplomaType);
   }
 
+  function toggleSelectionLock(slotId: string, field: SelectionField) {
+    const key = selectionLockKey(grade, slotId, field);
+    rememberCurrentPlan();
+    setLockedSelections((current) => current[key]
+      ? Object.fromEntries(Object.entries(current).filter(([itemKey]) => itemKey !== key))
+      : { ...current, [key]: true });
+  }
+
+  function autofillPlan() {
+    rememberCurrentPlan();
+    const filledSelections = autofillSelections(selections, priorCourses, lockedSelections);
+    setSelections(filledSelections);
+    setLockedSelections((current) => sanitizeLockedSelections(current, filledSelections));
+    setAutofillMessage("Autofill updated every unlocked course while preserving locks and elective formats.");
+  }
+
   function savePlanAsJson() {
     const savedAt = new Date();
     const fileName = planFileName(studentName, savedAt);
-    const contents = JSON.stringify(exportedPlan(studentName, selections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks, grade, isOverview, savedAt), null, 2);
+    const contents = JSON.stringify(exportedPlan(studentName, selections, lockedSelections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks, grade, isOverview, savedAt), null, 2);
     const url = window.URL.createObjectURL(new Blob([contents], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
@@ -1913,7 +2175,7 @@ export default function App() {
 
   function savePlanAsPdf() {
     const savedAt = new Date();
-    const planData = exportedPlan(studentName, selections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks, grade, isOverview, savedAt);
+    const planData = exportedPlan(studentName, selections, lockedSelections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks, grade, isOverview, savedAt);
     const url = window.URL.createObjectURL(createRecoverablePdf(planData));
     const link = document.createElement("a");
     link.href = url;
@@ -1941,6 +2203,7 @@ export default function App() {
       rememberCurrentPlan();
       setStudentName(imported.plan.studentName);
       setSelections(imported.plan.selections);
+      setLockedSelections(imported.plan.lockedSelections);
       setPriorCourses(imported.plan.priorCourses);
       setPriorCourseGrades(imported.plan.priorCourseGrades);
       setDiplomaType(imported.plan.diplomaType);
@@ -1959,12 +2222,13 @@ export default function App() {
   }
 
   function resetPlan() {
-    if (!window.confirm("Reset the entire course plan? This clears all course selections, grades, and checklist answers saved on this device.")) return;
+    if (!window.confirm("Reset the entire course plan? This clears all course selections, grades, locks, and checklist answers saved on this device.")) return;
 
     rememberCurrentPlan();
     window.localStorage.removeItem("fcps-course-plan-v2");
     window.localStorage.removeItem("rcms-course-plan-v1");
     setSelections(emptySelections());
+    setLockedSelections({});
     setPriorCourses([]);
     setPriorCourseGrades({});
     setDiplomaType("advanced");
@@ -2021,8 +2285,13 @@ export default function App() {
             </div>
           </div>
           <div className="toolbar-actions">
+            <button type="button" className="autofill-button" onClick={autofillPlan}>Autofill highest-GPA path</button>
             <button type="button" className="reset-button" onClick={resetPlan}>Reset plan</button>
           </div>
+        </div>
+        <div className="autofill-guidance">
+          <p>Autofill chooses the highest-weight available course sequence, continues prerequisites and electives, and never changes elective formats. Lock any course you want it to keep.</p>
+          {autofillMessage && <p className="autofill-message" role="status">{autofillMessage}</p>}
         </div>
 
         {isOverview ? (
@@ -2174,47 +2443,71 @@ export default function App() {
                   <div className="course-choice">
                     {slot.kind === "core" ? (
                       <div className="course-grade-fields">
-                        <CoursePicker
-                          courses={slot.courses}
-                          grade={grade}
-                          selections={selections}
-                          priorCourses={priorCourses}
-                          value={value.primary}
-                          label={`Choose ${slot.label} for grade ${grade}`}
-                          visibleLabel={false}
-                          onChange={(courseId) => updateSelection(slot.id, { primary: courseId, primaryGrade: "" })}
-                        />
+                        <div className="picker-lock-row">
+                          <CoursePicker
+                            courses={slot.courses}
+                            grade={grade}
+                            selections={selections}
+                            priorCourses={priorCourses}
+                            value={value.primary}
+                            label={`Choose ${slot.label} for grade ${grade}`}
+                            visibleLabel={false}
+                            onChange={(courseId) => updateSelection(slot.id, { primary: courseId, primaryGrade: "" })}
+                          />
+                          <SelectionLockButton
+                            locked={Boolean(lockedSelections[selectionLockKey(grade, slot.id, "primary")])}
+                            disabled={!value.primary}
+                            label={`${slot.label} for grade ${grade}`}
+                            onToggle={() => toggleSelectionLock(slot.id, "primary")}
+                          />
+                        </div>
                         <CourseSupport grade={grade} courseId={value.primary} subject={slot.label} highSchoolCredits={1} eligibilityChecks={eligibilityChecks} onToggleEligibility={toggleEligibility} />
                         <label className="grade-field"><span>Grade</span><select value={value.primaryGrade ?? ""} disabled={!value.primary} onChange={(event) => updateSelection(slot.id, { primaryGrade: event.target.value as GradeMark | "" })}><option value="">No grade</option><GradeOptions /></select></label>
                       </div>
                     ) : (
                       <div className="elective-fields">
                         <div className="elective-course">
-                          <CoursePicker
-                            courses={options}
-                            grade={grade}
-                            selections={selections}
-                            priorCourses={priorCourses}
-                            value={value.primary}
-                            label={value.mode === "yearlong" ? "Course" : "Fall semester"}
-                            blockedFamilyIds={electiveFamilyIdsExcept(electiveSlots, gradeSelections, slot.id, "primary")}
-                            onChange={(courseId) => updateSelection(slot.id, { primary: courseId, primaryGrade: "" })}
-                          />
+                          <div className="picker-lock-row">
+                            <CoursePicker
+                              courses={options}
+                              grade={grade}
+                              selections={selections}
+                              priorCourses={priorCourses}
+                              value={value.primary}
+                              label={value.mode === "yearlong" ? "Course" : "Fall semester"}
+                              blockedFamilyIds={electiveFamilyIdsExcept(electiveSlots, gradeSelections, slot.id, "primary")}
+                              onChange={(courseId) => updateSelection(slot.id, { primary: courseId, primaryGrade: "" })}
+                            />
+                            <SelectionLockButton
+                              locked={Boolean(lockedSelections[selectionLockKey(grade, slot.id, "primary")])}
+                              disabled={!value.primary}
+                              label={`${slot.label} ${value.mode === "yearlong" ? "course" : "fall semester"} for grade ${grade}`}
+                              onToggle={() => toggleSelectionLock(slot.id, "primary")}
+                            />
+                          </div>
                           <CourseSupport grade={grade} courseId={value.primary} subject={slot.label} highSchoolCredits={value.mode === "semester" ? 0.5 : 1} eligibilityChecks={eligibilityChecks} onToggleEligibility={toggleEligibility} />
                           <label className="grade-field"><span>{value.mode === "yearlong" ? "Grade" : "Fall grade"}</span><select value={value.primaryGrade ?? ""} disabled={!value.primary} onChange={(event) => updateSelection(slot.id, { primaryGrade: event.target.value as GradeMark | "" })}><option value="">No grade</option><GradeOptions /></select></label>
                         </div>
                         {value.mode === "semester" && <div className="elective-course">
-                          <CoursePicker
-                            courses={slot.semester}
-                            grade={grade}
-                            selections={selections}
-                            priorCourses={priorCourses}
-                            value={value.secondary}
-                            label="Spring semester"
-                            additionalCompleted={completedInFall}
-                            blockedFamilyIds={electiveFamilyIdsExcept(electiveSlots, gradeSelections, slot.id, "secondary")}
-                            onChange={(courseId) => updateSelection(slot.id, { secondary: courseId, secondaryGrade: "" })}
-                          />
+                          <div className="picker-lock-row">
+                            <CoursePicker
+                              courses={slot.semester}
+                              grade={grade}
+                              selections={selections}
+                              priorCourses={priorCourses}
+                              value={value.secondary}
+                              label="Spring semester"
+                              additionalCompleted={completedInFall}
+                              blockedFamilyIds={electiveFamilyIdsExcept(electiveSlots, gradeSelections, slot.id, "secondary")}
+                              onChange={(courseId) => updateSelection(slot.id, { secondary: courseId, secondaryGrade: "" })}
+                            />
+                            <SelectionLockButton
+                              locked={Boolean(lockedSelections[selectionLockKey(grade, slot.id, "secondary")])}
+                              disabled={!value.secondary}
+                              label={`${slot.label} spring semester for grade ${grade}`}
+                              onToggle={() => toggleSelectionLock(slot.id, "secondary")}
+                            />
+                          </div>
                           <CourseSupport grade={grade} courseId={value.secondary} subject={slot.label} highSchoolCredits={0.5} eligibilityChecks={eligibilityChecks} onToggleEligibility={toggleEligibility} />
                           <label className="grade-field"><span>Spring grade</span><select value={value.secondaryGrade ?? ""} disabled={!value.secondary} onChange={(event) => updateSelection(slot.id, { secondaryGrade: event.target.value as GradeMark | "" })}><option value="">No grade</option><GradeOptions /></select></label>
                         </div>}

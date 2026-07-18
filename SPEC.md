@@ -20,6 +20,8 @@ Skyview opens in 2026–27 with grades 9 and 10. The grade 11 and 12 charts are 
 - Select the base course first. When it has multiple versions, show a second **Version** dropdown immediately below it for Standard, Honors, AAP Center, AP, or another published version.
 - Do not list Standard and Honors as unrelated courses in the first dropdown. For example, list “Algebra 2” once, then offer Standard and Honors in its Version dropdown.
 - Do not show slot numbers, a slot column, a completion counter, or a slot progress bar.
+- Provide one autofill action that fills every unlocked course choice in prerequisite order, favors the highest available GPA weight, and continues elective sequences such as world languages.
+- Give every core, yearlong-elective, fall-semester, and spring-semester course choice its own lock control. Autofill must preserve locked choices.
 - Keep pre-grade-7 information collapsed until opened.
 - Keep course explanations, graduation details, and plan checks compact and collapsible.
 - Use native, keyboard-accessible controls and reflow on mobile without horizontal page scrolling.
@@ -81,6 +83,7 @@ Each high-school grade uses a compact seven-category planning chart for English,
 - Show the estimated unweighted and weighted GPA at the same time; do not require the user to switch between GPA modes. Give each estimate its own labeled bar using a 4.0 unweighted scale and 5.0 weighted planning scale.
 - On Overview, show a cumulative college-facing GPA estimate using only graded high-school-credit courses across grades 7–12. Display the projected FCPS weighted GPA prominently, include an unweighted reference, and explain that individual colleges may recalculate GPA.
 - Save plans locally in the browser and do not send student data to a server.
+- Persist course locks locally and in planner-exported JSON/PDF data. Autofill must preserve each grade's selected elective format.
 - Provide JSON and PDF save actions. Both filenames and document titles include the local date and time of that save operation; filenames begin with the sanitized value entered in the name field. The PDF contains a readable summary of grades 7–12 and the graduation credit check, with embedded structured data so it can be loaded and edited later.
 - Provide a “Load plan” action that accepts planner-exported JSON or PDF files, validates their plan data, restores the saved view, and leaves the imported plan editable. Reject unrelated PDFs with a clear message.
 - Run as a standalone React/Vite static app.

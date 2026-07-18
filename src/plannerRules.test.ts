@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import {
+  autofillSelections,
   calculateGpa,
   calculateTranscriptGpa,
   canSelectCourse,
@@ -11,6 +12,7 @@ import {
   planFileName,
   plannedCreditTotals,
   sanitizeSelections,
+  selectionLockKey,
 } from "./App";
 
 type Selections = Parameters<typeof sanitizeSelections>[0];
@@ -119,6 +121,46 @@ describe("selection sanitization", () => {
   });
 });
 
+describe("highest-GPA path autofill", () => {
+  it("fills every primary course spot from an empty plan", () => {
+    const filled = autofillSelections(emptySelections(), []);
+    for (const grade of ["7", "8", "9", "10", "11", "12"] as const) {
+      expect(Object.values(filled[grade])).toHaveLength(7);
+      const emptySlots = Object.entries(filled[grade]).filter(([, value]) => !value.primary).map(([slotId]) => slotId);
+      expect(emptySlots, `grade ${grade} empty slots`).toEqual([]);
+    }
+  });
+
+  it("continues accelerated math from pre-grade-7 Geometry", () => {
+    const filled = autofillSelections(emptySelections(), ["geometry"]);
+    expect(filled["7"].math.primary).toBe("algebra2h");
+    expect(filled["8"].math.primary).toBe("ap-precalculus");
+    expect(filled["9"].math.primary).toBe("ap-calculus-ab");
+  });
+
+  it("keeps an elective interest and continues its next level", () => {
+    const selections = emptySelections();
+    selections["7"]["elective-1"] = selection("spanish1");
+    const filled = autofillSelections(selections, []);
+    expect(filled["7"]["elective-1"].primary).toBe("spanish1");
+    expect(Object.values(filled["8"]).some((value) => value.primary === "spanish2")).toBe(true);
+  });
+
+  it("preserves locked choices and the selected elective format", () => {
+    const selections = emptySelections();
+    selections["7"]["elective-1"] = selection("", "", "yearlong");
+    selections["7"]["elective-2"] = selection("", "", "semester");
+    selections["10"].math = selection("discrete-mathematics");
+    const locks = { [selectionLockKey("10", "math", "primary")]: true };
+
+    const filled = autofillSelections(selections, ["geometry"], locks);
+    expect(filled["10"].math.primary).toBe("discrete-mathematics");
+    expect(filled["7"]["elective-1"].mode).toBe("yearlong");
+    expect(filled["7"]["elective-2"].mode).toBe("semester");
+    expect(filled["7"]["elective-2"].secondary).not.toBe("");
+  });
+});
+
 describe("GPA calculations", () => {
   it("calculates full-year and half-credit grades with Honors/AP weighting", () => {
     const gradeSelections: Selections["12"] = {
@@ -195,6 +237,7 @@ describe("saved filenames and recoverable PDF export", () => {
       activeView: "overview",
       studentName: "Eric Bishop",
       selections: emptySelections(),
+      lockedSelections: {},
       priorCourses: [],
       priorCourseGrades: {},
       diplomaType: "advanced",

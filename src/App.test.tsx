@@ -9,6 +9,7 @@ function savedPlan(overrides: Record<string, unknown> = {}) {
   return {
     studentName: "",
     selections: emptySelections(),
+    lockedSelections: {},
     priorCourses: [],
     priorCourseGrades: {},
     diplomaType: "advanced",
@@ -68,6 +69,28 @@ describe("elective formats and duplicate prevention", () => {
     await user.selectOptions(electiveSelects[0], "spanish1");
     const duplicate = within(electiveSelects[1]).getByRole("option", { name: /Spanish Level 1.*already selected in another elective/ });
     expect(duplicate).toBeDisabled();
+  });
+});
+
+describe("autofill and course locks", () => {
+  it("keeps a locked course and preserves the selected elective format", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const englishColumn = screen.getByRole("heading", { name: "English" }).closest(".course-column");
+    const english = within(englishColumn as HTMLElement);
+    await user.selectOptions(english.getByLabelText("Choose English for grade 7"), "english-7");
+    await user.selectOptions(english.getByLabelText("Version"), "english7aa");
+    await user.click(english.getByRole("button", { name: "Lock English for grade 7" }));
+    await user.click(screen.getByRole("radio", { name: /1 full-year \+ 2 semester courses/ }));
+    await user.click(screen.getByRole("button", { name: "Autofill highest-GPA path" }));
+
+    expect(english.getByLabelText("Version")).toHaveValue("english7aa");
+    expect(english.getByRole("button", { name: "Unlock English for grade 7" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getAllByLabelText("Course")).toHaveLength(1);
+    expect(screen.getAllByLabelText("Fall semester")).toHaveLength(1);
+    expect(screen.getAllByLabelText("Spring semester")).toHaveLength(1);
+    expect(screen.getByRole("status")).toHaveTextContent("preserving locks and elective formats");
+    await waitFor(() => expect(JSON.parse(window.localStorage.getItem("fcps-course-plan-v2") ?? "{}").lockedSelections["7:english:primary"]).toBe(true));
   });
 });
 
