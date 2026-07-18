@@ -28,16 +28,12 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 46px); line-height: 1.08; letter-spa
 .grade-tabs button.active { border-color: var(--primary); background: var(--primary); color: white; }
 .grade-note { margin: 0; padding: 11px 18px; border-block: 1px solid var(--border); background: var(--primary-soft); color: #294361; font-size: 13px; line-height: 1.45; }
 .gpa-panel { margin: 12px 18px; padding: 14px; border: 1px solid var(--border); border-radius: 6px; }
-.gpa-heading { display: flex; align-items: flex-start; justify-content: space-between; gap: 24px; }
-.gpa-heading .section-label { margin: 0 0 5px; }
-.gpa-value { margin: 0; font-size: 32px; font-weight: 700; letter-spacing: -.03em; }
+.gpa-panel > .section-label { margin: 0 0 8px; }
+.gpa-values { display: flex; gap: 10px; }
+.gpa-metric { min-width: 130px; padding: 9px 11px; border: 1px solid var(--border); border-radius: 5px; }
+.gpa-metric span { display: block; color: var(--muted); font-size: 11px; font-weight: 700; text-transform: uppercase; }
+.gpa-metric strong { display: block; margin-top: 2px; font-size: 28px; letter-spacing: -.03em; }
 .gpa-detail { margin: 3px 0 0; color: var(--muted); font-size: 12px; }
-.gpa-tabs { display: flex; gap: 6px; }
-.gpa-tabs button { min-height: 36px; padding: 0 12px; border: 1px solid var(--border); border-radius: 5px; background: white; color: var(--foreground); cursor: pointer; font-size: 13px; font-weight: 700; }
-.gpa-tabs button:hover { background: #f4f6f9; }
-.gpa-tabs button.active { border-color: var(--primary); background: var(--primary); color: white; }
-.gpa-track { height: 9px; margin-top: 13px; overflow: hidden; border-radius: 999px; background: #e9edf2; }
-.gpa-track span { display: block; height: 100%; border-radius: inherit; background: var(--primary); transition: width 180ms ease; }
 .gpa-note { margin: 8px 0 0; color: var(--muted); font-size: 12px; line-height: 1.45; }
 .graduation-panel { margin: 12px 18px; padding: 14px; border: 1px solid var(--border); border-radius: 6px; }
 .graduation-heading { display: flex; align-items: flex-end; justify-content: space-between; gap: 20px; }
@@ -128,7 +124,8 @@ footer a { flex: none; color: var(--primary); font-weight: 700; }
   .grade-tabs button { flex: 1; padding-inline: 10px; }
   .check-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .format-options { grid-template-columns: 1fr; }
-  .gpa-heading { align-items: stretch; flex-direction: column; gap: 14px; }
+  .gpa-values { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .gpa-metric { min-width: 0; }
   .graduation-heading { align-items: stretch; flex-direction: column; gap: 12px; }
   .course-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
   .course-column { border-bottom: 1px solid var(--border); }
@@ -136,8 +133,6 @@ footer a { flex: none; color: var(--primary); font-weight: 700; }
   .course-column h2 { min-height: 0; }
   footer { flex-direction: column; gap: 8px; }
 }
-
-@media (prefers-reduced-motion: reduce) { .gpa-track span { transition: none; } }
 
 @media (max-width: 470px) {
   .grade-groups { display: grid; grid-template-columns: 1fr; }
