@@ -1,5 +1,5 @@
 # FCPS Course Planner: Rachel Carson to Skyview
-
+Try it out https://bishoppawn1.github.io/curriculum-chooser/
 A standalone React and Vite app for planning an FCPS course path from Rachel Carson Middle School through Skyview High School.
 
 - **Middle School:** grades 7 and 8 at Rachel Carson
