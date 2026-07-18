@@ -172,8 +172,9 @@ Selecting one of these entries is treated as prior completion for grade 7 prereq
 ## 10. Layout and interaction
 
 - Use grade 6, 7, and 8 buttons to switch charts.
-- Show the active grade, completion count, and a short grade-specific note.
-- Present schedule rows with slot number, requirement label, and editable course fields.
+- Show the active grade and a short grade-specific note.
+- Present a compact subject-first grid with each subject name above its editable course field.
+- Do not display slot numbers, a separate requirement column, a completion counter, or a progress bar.
 - Use native form controls.
 - On small screens, convert each table row into a readable vertical section.
 - Avoid decorative imagery and unnecessary visual effects.
@@ -190,10 +191,10 @@ Selecting one of these entries is treated as prior completion for grade 7 prereq
 
 The feature is complete when all of the following are true:
 
-1. Grades 6–8 each display seven clearly labeled schedule slots.
+1. Grades 6–8 each display seven clearly labeled course categories in a compact grid.
 2. Grade 7 and grade 8 each display five core requirements and two elective periods.
 3. Users can change every course selection through native controls.
-4. Each elective period supports one yearlong course or two semester courses.
+4. Users can switch among two full-year courses, one full-year plus two semester courses, and four semester courses.
 5. Grade 7 users can record courses completed before grade 7.
 6. Spanish 2 cannot be selected until Spanish 1 or Part B is present in the previous-grade data.
 7. Algebra 2 Honors cannot be selected until Geometry or Geometry Honors is present in the previous-grade data.

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from "react";
+import { useEffect, useState } from "react";
 
 type Grade = "6" | "7" | "8";
 type Mode = "yearlong" | "semester";
@@ -264,11 +264,6 @@ export default function App() {
   const gradeSelections = selections[grade] ?? {};
   const electiveSlots = plan.slots.filter((slot): slot is ElectiveSlot => slot.kind === "elective");
   const electiveFormat = electiveFormatFor(electiveSlots, gradeSelections);
-  const completeCount = useMemo(() => plan.slots.filter((slot) => {
-    const value = gradeSelections[slot.id];
-    if (!value?.primary) return false;
-    return slot.kind === "core" || value.mode === "yearlong" || Boolean(value.secondary);
-  }).length, [gradeSelections, plan.slots]);
 
   function updateSelection(slotId: string, patch: Partial<Selection>) {
     setSelections((current) => {
@@ -307,7 +302,7 @@ export default function App() {
       <header className="page-header">
         <p className="eyebrow">Fairfax County Public Schools</p>
         <h1>Middle School Course Planner</h1>
-        <p className="intro">Choose one course for every required slot. Later courses unlock when their prerequisite appears in the previous grade.</p>
+        <p className="intro">Choose a course for each subject. Later courses unlock when their prerequisite appears in the previous grade.</p>
       </header>
 
       <section className="planner" aria-labelledby="planner-title">
@@ -320,15 +315,12 @@ export default function App() {
               ))}
             </div>
           </div>
-          <div className="progress-text" aria-live="polite"><strong>{completeCount} of {plan.slots.length}</strong><span>slots complete</span></div>
         </div>
 
-        <div className="progress-track" aria-hidden="true"><span style={{ width: `${(completeCount / plan.slots.length) * 100}%` }} /></div>
         <p className="grade-note" id="planner-title">{plan.note}</p>
 
         <fieldset className="elective-format">
           <legend>Elective format</legend>
-          <p>Choose how the two elective periods are divided. Switching formats clears only the periods whose course length changes.</p>
           <div className="format-options">
             {electiveFormats.map((format) => (
               <label key={format.id} className={electiveFormat === format.id ? "selected" : ""}>
@@ -346,32 +338,29 @@ export default function App() {
         </fieldset>
 
         {grade === "7" && (
-          <fieldset className="prior-courses">
-            <legend>Courses completed before grade 7</legend>
-            <p>Select any high-school-level or advanced courses already completed. These can satisfy grade 7 prerequisites when no grade 6 plan is available.</p>
-            <div className="check-grid">
-              {priorCourseChoices.map((item) => (
-                <label key={item.id}><input type="checkbox" checked={priorCourses.includes(item.id)} onChange={() => togglePriorCourse(item.id)} /> {item.label}</label>
-              ))}
+          <details className="prior-courses">
+            <summary>Courses completed before grade 7</summary>
+            <div className="prior-content">
+              <p>Select earlier courses that should count toward grade 7 prerequisites.</p>
+              <div className="check-grid">
+                {priorCourseChoices.map((item) => (
+                  <label key={item.id}><input type="checkbox" checked={priorCourses.includes(item.id)} onChange={() => togglePriorCourse(item.id)} /> {item.label}</label>
+                ))}
+              </div>
             </div>
-          </fieldset>
+          </details>
         )}
 
-        <table>
-          <caption className="sr-only">Editable course selections for grade {grade}</caption>
-          <thead><tr><th scope="col">Slot</th><th scope="col">Requirement</th><th scope="col">Course choice</th></tr></thead>
-          <tbody>
-            {plan.slots.map((slot, index) => {
+        <section className="course-grid" aria-label={`Grade ${grade} course choices`}>
+            {plan.slots.map((slot) => {
               const value = gradeSelections[slot.id] ?? { mode: "yearlong" as Mode, primary: "", secondary: "" };
-              const isComplete = Boolean(value.primary) && (slot.kind === "core" || value.mode === "yearlong" || Boolean(value.secondary));
               const options = slot.kind === "core" ? slot.courses : value.mode === "yearlong" ? slot.yearlong : slot.semester;
               const hasLockedOptions = options.some((item) => !isAvailable(item, grade, selections, priorCourses));
 
               return (
-                <tr key={slot.id} className={isComplete ? "complete" : ""}>
-                  <td className="slot-number">{index + 1}</td>
-                  <th scope="row">{slot.label}<span>{slot.kind === "core" ? "Required" : "Required elective slot"}</span></th>
-                  <td>
+                <div className="course-column" key={slot.id}>
+                  <h2>{slot.label}</h2>
+                  <div className="course-choice">
                     {slot.kind === "core" ? (
                       <label>
                         <span className="sr-only">Choose {slot.label} for grade {grade}</span>
@@ -387,12 +376,11 @@ export default function App() {
                       </div>
                     )}
                     {hasLockedOptions && <p className="locked-note">Locked options show the course required in grade {grade === "7" ? "6" : "7"}.</p>}
-                  </td>
-                </tr>
+                  </div>
+                </div>
               );
             })}
-          </tbody>
-        </table>
+        </section>
       </section>
 
       <footer><p>Course offerings and placement rules vary by school. Confirm final choices with the student’s FCPS counselor.</p><a href="https://www.fcps.edu/academics/coursecatalogs" target="_blank" rel="noreferrer">Official FCPS course catalog</a></footer>

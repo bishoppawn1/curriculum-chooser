@@ -37,7 +37,7 @@ Run `npm run build` after implementation changes. The build must pass TypeScript
 
 ## Product rules
 
-1. Keep the interface a simple editable chart. Avoid decorative imagery, animation, dashboards, or unrelated features.
+1. Keep the interface a short, subject-first editable chart. Put each subject name above its course selector. Do not reintroduce slot numbers, a slot column, a completion bar, decorative imagery, dashboards, or unrelated features.
 2. Support grades 6, 7, and 8.
 3. Clearly label every schedule slot by subject or purpose.
 4. Grades 7 and 8 have five required core slots and two elective periods.
