@@ -78,6 +78,7 @@ type SavedPlan = {
 
 type ExportedPlan = SavedPlan & {
   formatVersion: 1;
+  title: string;
   exportedAt: string;
   activeView: "overview" | `grade-${Grade}`;
 };
@@ -782,18 +783,32 @@ function planFileStem(name: string) {
     .replace(/^-+|-+$/g, "");
 }
 
-export function planFileName(name: string) {
-  const stem = planFileStem(name);
-  return `${stem || "course-plan"}-course-plan.json`;
+function saveTimestamp(savedAt: Date) {
+  const part = (value: number) => String(value).padStart(2, "0");
+  return `${savedAt.getFullYear()}-${part(savedAt.getMonth() + 1)}-${part(savedAt.getDate())}_${part(savedAt.getHours())}-${part(savedAt.getMinutes())}-${part(savedAt.getSeconds())}`;
 }
 
-export function pdfDocumentTitle(name: string) {
-  const stem = planFileStem(name);
-  return stem ? `${stem}-fcps-course-plan` : "fcps-course-plan";
+function saveDateTimeLabel(savedAt: Date) {
+  return saveTimestamp(savedAt).replace("_", " ").replace(/-(\d{2})-(\d{2})$/, ":$1:$2");
 }
 
-export function pdfFileName(name: string) {
-  return `${pdfDocumentTitle(name)}.pdf`;
+export function exportDocumentTitle(name: string, savedAt: Date) {
+  const student = name.trim();
+  return `${student ? `${student} - ` : ""}FCPS Course Plan - Saved ${saveDateTimeLabel(savedAt)}`;
+}
+
+export function planFileName(name: string, savedAt: Date = new Date()) {
+  const stem = planFileStem(name);
+  return `${stem || "course-plan"}-course-plan-${saveTimestamp(savedAt)}.json`;
+}
+
+export function pdfDocumentTitle(name: string, savedAt: Date = new Date()) {
+  const stem = planFileStem(name);
+  return `${stem ? `${stem}-` : ""}fcps-course-plan-${saveTimestamp(savedAt)}`;
+}
+
+export function pdfFileName(name: string, savedAt: Date = new Date()) {
+  return `${pdfDocumentTitle(name, savedAt)}.pdf`;
 }
 
 function exportedPlan(
@@ -804,11 +819,13 @@ function exportedPlan(
   eligibilityChecks: Record<string, boolean>,
   grade: Grade,
   isOverview: boolean,
+  savedAt: Date = new Date(),
 ): ExportedPlan {
   return {
     formatVersion: 1,
+    title: exportDocumentTitle(studentName, savedAt),
     studentName: studentName.trim(),
-    exportedAt: new Date().toISOString(),
+    exportedAt: savedAt.toISOString(),
     activeView: isOverview ? "overview" : `grade-${grade}`,
     selections,
     priorCourses,
@@ -862,7 +879,7 @@ function pdfSummaryLines(plan: ExportedPlan) {
   const credits = plannedCreditTotals(plan.selections);
   const requirements = graduationRequirements(plan.diplomaType, plan.selections);
   const lines = [
-    `${plan.studentName || "Student"} - FCPS Course Plan`,
+    plan.title,
     "Rachel Carson Middle School to Skyview High School",
     `${plan.diplomaType === "advanced" ? "Advanced Studies" : "Standard"} Diploma - ${credits.total} planned high-school credits`,
   ];
@@ -916,6 +933,9 @@ export function createRecoverablePdf(plan: ExportedPlan) {
     objects[pageObjectId] = `<< /Type /Page /Parent 2 0 R /MediaBox [0 0 612 792] /Resources << /Font << /F1 3 0 R >> >> /Contents ${contentObjectId} 0 R >>`;
     objects[contentObjectId] = `<< /Length ${stream.length} >>\nstream\n${stream}\nendstream`;
   });
+  const infoObjectId = 4 + pages.length * 2;
+  const pdfCreationDate = `D:${plan.exportedAt.replace(/[-:T]/g, "").slice(0, 14)}Z`;
+  objects[infoObjectId] = `<< /Title (${escapePdfString(plan.title)}) /CreationDate (${pdfCreationDate}) >>`;
 
   let pdf = `%PDF-1.4\n% FCPS Course Planner\n${recoveryBlock}`;
   const offsets = [0];
@@ -928,7 +948,7 @@ export function createRecoverablePdf(plan: ExportedPlan) {
   for (let objectId = 1; objectId < objects.length; objectId += 1) {
     pdf += `${String(offsets[objectId]).padStart(10, "0")} 00000 n \n`;
   }
-  pdf += `trailer\n<< /Size ${objects.length} /Root 1 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
+  pdf += `trailer\n<< /Size ${objects.length} /Root 1 0 R /Info ${infoObjectId} 0 R >>\nstartxref\n${xrefOffset}\n%%EOF\n`;
   return new Blob([pdf], { type: "application/pdf" });
 }
 
@@ -1789,8 +1809,9 @@ export default function App() {
   }
 
   function savePlanAsJson() {
-    const fileName = planFileName(studentName);
-    const contents = JSON.stringify(exportedPlan(studentName, selections, priorCourses, diplomaType, eligibilityChecks, grade, isOverview), null, 2);
+    const savedAt = new Date();
+    const fileName = planFileName(studentName, savedAt);
+    const contents = JSON.stringify(exportedPlan(studentName, selections, priorCourses, diplomaType, eligibilityChecks, grade, isOverview, savedAt), null, 2);
     const url = window.URL.createObjectURL(new Blob([contents], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
@@ -1802,11 +1823,12 @@ export default function App() {
   }
 
   function savePlanAsPdf() {
-    const planData = exportedPlan(studentName, selections, priorCourses, diplomaType, eligibilityChecks, grade, isOverview);
+    const savedAt = new Date();
+    const planData = exportedPlan(studentName, selections, priorCourses, diplomaType, eligibilityChecks, grade, isOverview, savedAt);
     const url = window.URL.createObjectURL(createRecoverablePdf(planData));
     const link = document.createElement("a");
     link.href = url;
-    link.download = pdfFileName(studentName);
+    link.download = pdfFileName(studentName, savedAt);
     document.body.appendChild(link);
     link.click();
     link.remove();

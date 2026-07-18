@@ -80,7 +80,7 @@ Each high-school grade uses a compact seven-category planning chart for English,
 - Show the estimated unweighted and weighted GPA at the same time; do not require the user to switch between GPA modes. Give each estimate its own labeled bar using a 4.0 unweighted scale and 5.0 weighted planning scale.
 - On Overview, show a cumulative college-facing GPA estimate using only graded high-school-credit courses across grades 7–12. Display the projected FCPS weighted GPA prominently, include an unweighted reference, and explain that individual colleges may recalculate GPA.
 - Save plans locally in the browser and do not send student data to a server.
-- Provide a “Save plan as PDF” action that downloads a readable summary of grades 7–12 and the graduation credit check. Embed the structured plan data so PDFs exported by the planner can be loaded and edited later. The suggested PDF filename must begin with the sanitized value entered in the name field.
+- Provide JSON and PDF save actions. Both filenames and document titles include the local date and time of that save operation; filenames begin with the sanitized value entered in the name field. The PDF contains a readable summary of grades 7–12 and the graduation credit check, with embedded structured data so it can be loaded and edited later.
 - Provide a “Load plan” action that accepts planner-exported JSON or PDF files, validates their plan data, restores the saved view, and leaves the imported plan editable. Reject unrelated PDFs with a clear message.
 - Run as a standalone React/Vite static app.
 - Do not use ChatGPT Sites, Vinext, Next.js, or Cloudflare Workers.
