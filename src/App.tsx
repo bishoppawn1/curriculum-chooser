@@ -72,6 +72,7 @@ type SavedPlan = {
   studentName: string;
   selections: Selections;
   priorCourses: string[];
+  priorCourseGrades: Record<string, GradeMark | "">;
   diplomaType: DiplomaType;
   eligibilityChecks: Record<string, boolean>;
 };
@@ -740,6 +741,10 @@ const priorCourseGroups = priorCourseGroupOrder.map((label) => ({
   }),
 })).filter((group) => group.courses.length > 0);
 
+function priorCourseReceivesGrade(item: Course) {
+  return Boolean(item.highSchoolCredit || collegeCreditDetails[item.id]);
+}
+
 const emptySelections = (): Selections => ({ "7": {}, "8": {}, "9": {}, "10": {}, "11": {}, "12": {} });
 const emptySelection = (mode: Mode = "yearlong"): Selection => ({ mode, primary: "", secondary: "", primaryGrade: "", secondaryGrade: "" });
 
@@ -748,6 +753,7 @@ function loadSavedPlan(): SavedPlan {
     studentName: "",
     selections: emptySelections(),
     priorCourses: [],
+    priorCourseGrades: {},
     diplomaType: "advanced",
     eligibilityChecks: {},
   };
@@ -760,11 +766,17 @@ function loadSavedPlan(): SavedPlan {
 
     const data = JSON.parse(saved) as Partial<SavedPlan>;
     const priorCourses = data.priorCourses ?? [];
+    const priorCourseGrades = Object.fromEntries(Object.entries(data.priorCourseGrades ?? {}).filter(([courseId, mark]) =>
+      priorCourses.includes(courseId)
+      && Boolean(courseById.get(courseId) && priorCourseReceivesGrade(courseById.get(courseId)!))
+      && (mark === "" || gradeMarks.includes(mark as GradeMark)),
+    )) as Record<string, GradeMark | "">;
     const selections = { ...emptySelections(), ...(data.selections ?? {}) };
     return {
       studentName: data.studentName ?? "",
       selections: sanitizeSelections(selections, priorCourses),
       priorCourses,
+      priorCourseGrades,
       diplomaType: data.diplomaType === "standard" ? "standard" : "advanced",
       eligibilityChecks: data.eligibilityChecks ?? {},
     };
@@ -815,6 +827,7 @@ function exportedPlan(
   studentName: string,
   selections: Selections,
   priorCourses: string[],
+  priorCourseGrades: Record<string, GradeMark | "">,
   diplomaType: DiplomaType,
   eligibilityChecks: Record<string, boolean>,
   grade: Grade,
@@ -829,6 +842,7 @@ function exportedPlan(
     activeView: isOverview ? "overview" : `grade-${grade}`,
     selections,
     priorCourses,
+    priorCourseGrades,
     diplomaType,
     eligibilityChecks,
   };
@@ -883,6 +897,14 @@ function pdfSummaryLines(plan: ExportedPlan) {
     "Rachel Carson Middle School to Skyview High School",
     `${plan.diplomaType === "advanced" ? "Advanced Studies" : "Standard"} Diploma - ${credits.total} planned high-school credits`,
   ];
+
+  const gradedPriorCourses = plan.priorCourses
+    .map((courseId) => courseById.get(courseId))
+    .filter((item): item is Course => Boolean(item && priorCourseReceivesGrade(item)));
+  if (gradedPriorCourses.length) {
+    lines.push("", "High-school-credit courses completed before grade 7");
+    gradedPriorCourses.forEach((item) => lines.push(`${item.label} | Grade: ${plan.priorCourseGrades[item.id] || "-"}`));
+  }
 
   for (const planGrade of gradeOrder) {
     lines.push("", `Grade ${planGrade} - ${plans[planGrade].school === "middle" ? "Rachel Carson Middle School" : "Skyview High School"}`);
@@ -983,6 +1005,14 @@ function parseImportedPlan(value: unknown) {
   const priorCourses = Array.isArray(value.priorCourses) ? value.priorCourses.filter((item): item is string => typeof item === "string") : [];
   const allowedPriorCourses = new Set(priorCourseChoices.map((item) => item.id));
   const filteredPriorCourses = priorCourses.filter((item) => allowedPriorCourses.has(item));
+  const validMarks = new Set<string>([...gradeMarks, ""]);
+  const rawPriorCourseGrades = isRecord(value.priorCourseGrades) ? value.priorCourseGrades : {};
+  const priorCourseGrades = Object.fromEntries(Object.entries(rawPriorCourseGrades).filter((entry): entry is [string, GradeMark | ""] =>
+    filteredPriorCourses.includes(entry[0])
+    && Boolean(courseById.get(entry[0]) && priorCourseReceivesGrade(courseById.get(entry[0])!))
+    && typeof entry[1] === "string"
+    && validMarks.has(entry[1]),
+  ));
   const rawEligibility = isRecord(value.eligibilityChecks) ? value.eligibilityChecks : {};
   const eligibilityChecks = Object.fromEntries(Object.entries(rawEligibility).filter((entry): entry is [string, boolean] => typeof entry[1] === "boolean"));
   const normalizedSelections = normalizeImportedSelections(value.selections);
@@ -990,6 +1020,7 @@ function parseImportedPlan(value: unknown) {
     studentName: typeof value.studentName === "string" ? value.studentName.slice(0, 200) : "",
     selections: sanitizeSelections(normalizedSelections, filteredPriorCourses),
     priorCourses: filteredPriorCourses,
+    priorCourseGrades,
     diplomaType: value.diplomaType === "standard" ? "standard" : "advanced",
     eligibilityChecks,
   };
@@ -1216,14 +1247,18 @@ export function calculateGpa(grade: Grade, gradeSelections: Record<string, Selec
   return { value: credits ? qualityPoints / credits : null, credits, courseCount };
 }
 
-export function calculateTranscriptGpa(selections: Selections, gpaMode: GpaMode) {
+export function calculateTranscriptGpa(
+  selections: Selections,
+  gpaMode: GpaMode,
+  priorCourses: string[] = [],
+  priorCourseGrades: Record<string, GradeMark | ""> = {},
+) {
   let qualityPoints = 0;
   let credits = 0;
   let courseCount = 0;
 
-  const includeCourse = (grade: Grade, courseId: string, mark: GradeMark | "" | undefined, credit: number) => {
-    if (!courseId || !mark) return;
-    const selectedCourse = findCourse(grade, courseId);
+  const includeCourse = (selectedCourse: Course | undefined, mark: GradeMark | "" | undefined, credit: number) => {
+    if (!mark) return;
     if (!selectedCourse?.highSchoolCredit) return;
     const basePoints = gradePoints[mark];
     const weight = gpaMode === "weighted" && basePoints > 0 ? selectedCourse.gpaWeight ?? 0 : 0;
@@ -1232,15 +1267,19 @@ export function calculateTranscriptGpa(selections: Selections, gpaMode: GpaMode)
     courseCount += 1;
   };
 
+  for (const courseId of priorCourses) {
+    includeCourse(courseById.get(courseId), priorCourseGrades[courseId], 1);
+  }
+
   for (const grade of gradeOrder) {
     for (const slot of plans[grade].slots) {
       const value = selections[grade]?.[slot.id];
       if (!value) continue;
       if (slot.kind === "core" || value.mode === "yearlong") {
-        includeCourse(grade, value.primary, value.primaryGrade, 1);
+        includeCourse(findCourse(grade, value.primary), value.primaryGrade, 1);
       } else {
-        includeCourse(grade, value.primary, value.primaryGrade, 0.5);
-        includeCourse(grade, value.secondary, value.secondaryGrade, 0.5);
+        includeCourse(findCourse(grade, value.primary), value.primaryGrade, 0.5);
+        includeCourse(findCourse(grade, value.secondary), value.secondaryGrade, 0.5);
       }
     }
   }
@@ -1562,9 +1601,19 @@ function CoursePicker({
   );
 }
 
-function PlanOverview({ selections, onEditGrade }: { selections: Selections; onEditGrade: (grade: Grade) => void }) {
-  const transcriptUnweighted = calculateTranscriptGpa(selections, "unweighted");
-  const transcriptWeighted = calculateTranscriptGpa(selections, "weighted");
+function PlanOverview({
+  selections,
+  priorCourses,
+  priorCourseGrades,
+  onEditGrade,
+}: {
+  selections: Selections;
+  priorCourses: string[];
+  priorCourseGrades: Record<string, GradeMark | "">;
+  onEditGrade: (grade: Grade) => void;
+}) {
+  const transcriptUnweighted = calculateTranscriptGpa(selections, "unweighted", priorCourses, priorCourseGrades);
+  const transcriptWeighted = calculateTranscriptGpa(selections, "weighted", priorCourses, priorCourseGrades);
 
   return (
     <section className="overview" aria-labelledby="planner-title">
@@ -1598,7 +1647,7 @@ function PlanOverview({ selections, onEditGrade }: { selections: Selections; onE
             <strong>{transcriptUnweighted.value === null ? "—" : transcriptUnweighted.value.toFixed(2)}</strong>
           </div>
         </div>
-        <p className="college-gpa-note">Includes graded high-school-credit courses planned in grades 7–12; semester courses count as half credit. Colleges receive the transcript, but each college may recalculate GPA using its own rules.</p>
+        <p className="college-gpa-note">Includes graded high-school-credit courses completed before grade 7 or planned in grades 7–12; semester courses count as half credit. Colleges receive the transcript, but each college may recalculate GPA using its own rules.</p>
       </section>
 
       <div className="overview-grades">
@@ -1661,9 +1710,24 @@ function PlanOverview({ selections, onEditGrade }: { selections: Selections; onE
   );
 }
 
-function PrintPlan({ studentName, selections, diplomaType }: { studentName: string; selections: Selections; diplomaType: DiplomaType }) {
+function PrintPlan({
+  studentName,
+  selections,
+  priorCourses,
+  priorCourseGrades,
+  diplomaType,
+}: {
+  studentName: string;
+  selections: Selections;
+  priorCourses: string[];
+  priorCourseGrades: Record<string, GradeMark | "">;
+  diplomaType: DiplomaType;
+}) {
   const creditSummary = plannedCreditTotals(selections);
   const requirements = graduationRequirements(diplomaType, selections);
+  const visiblePriorCourses = priorCourses
+    .map((courseId) => courseById.get(courseId))
+    .filter((item): item is Course => Boolean(item && priorCourseReceivesGrade(item)));
 
   return (
     <section className="print-plan" aria-label="Printable course plan">
@@ -1672,6 +1736,16 @@ function PrintPlan({ studentName, selections, diplomaType }: { studentName: stri
         <p>Rachel Carson Middle School → Skyview High School</p>
         <p><strong>{diplomaType === "advanced" ? "Advanced Studies" : "Standard"} Diploma:</strong> {creditSummary.total} planned high-school credits</p>
       </header>
+
+      {visiblePriorCourses.length > 0 && (
+        <section className="print-grade">
+          <h2>High-school-credit courses completed before grade 7</h2>
+          <table>
+            <thead><tr><th scope="col">Course</th><th scope="col">Grade</th></tr></thead>
+            <tbody>{visiblePriorCourses.map((item) => <tr key={item.id}><th scope="row">{item.label}</th><td>{priorCourseGrades[item.id] || "—"}</td></tr>)}</tbody>
+          </table>
+        </section>
+      )}
 
       {gradeOrder.map((printGrade) => (
         <section className="print-grade" key={printGrade}>
@@ -1721,14 +1795,15 @@ export default function App() {
   const [isOverview, setIsOverview] = useState(false);
   const [selections, setSelections] = useState<Selections>(savedPlan.selections);
   const [priorCourses, setPriorCourses] = useState<string[]>(savedPlan.priorCourses);
+  const [priorCourseGrades, setPriorCourseGrades] = useState<Record<string, GradeMark | "">>(savedPlan.priorCourseGrades);
   const [diplomaType, setDiplomaType] = useState<DiplomaType>(savedPlan.diplomaType);
   const [eligibilityChecks, setEligibilityChecks] = useState<Record<string, boolean>>(savedPlan.eligibilityChecks);
   const [undoStack, setUndoStack] = useState<PlannerSnapshot[]>([]);
   const [loadMessage, setLoadMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
 
   useEffect(() => {
-    window.localStorage.setItem("fcps-course-plan-v2", JSON.stringify({ studentName, selections, priorCourses, diplomaType, eligibilityChecks }));
-  }, [studentName, selections, priorCourses, diplomaType, eligibilityChecks]);
+    window.localStorage.setItem("fcps-course-plan-v2", JSON.stringify({ studentName, selections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks }));
+  }, [studentName, selections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks]);
 
   const plan = plans[grade];
   const gradeSelections = selections[grade] ?? {};
@@ -1746,6 +1821,7 @@ export default function App() {
     const snapshot: PlannerSnapshot = {
       selections: structuredClone(selections),
       priorCourses: [...priorCourses],
+      priorCourseGrades: { ...priorCourseGrades },
       diplomaType,
       eligibilityChecks: { ...eligibilityChecks },
     };
@@ -1758,6 +1834,7 @@ export default function App() {
 
     setSelections(structuredClone(previous.selections));
     setPriorCourses([...previous.priorCourses]);
+    setPriorCourseGrades({ ...previous.priorCourseGrades });
     setDiplomaType(previous.diplomaType);
     setEligibilityChecks({ ...previous.eligibilityChecks });
     setUndoStack(undoStack.slice(0, -1));
@@ -1795,7 +1872,19 @@ export default function App() {
     const updated = priorCourses.includes(id) ? priorCourses.filter((item) => item !== id) : [...priorCourses, id];
     rememberCurrentPlan();
     setPriorCourses(updated);
+    if (!updated.includes(id)) {
+      setPriorCourseGrades((current) => {
+        const next = { ...current };
+        delete next[id];
+        return next;
+      });
+    }
     setSelections((current) => sanitizeSelections(current, updated));
+  }
+
+  function updatePriorCourseGrade(courseId: string, mark: GradeMark | "") {
+    rememberCurrentPlan();
+    setPriorCourseGrades((current) => ({ ...current, [courseId]: mark }));
   }
 
   function toggleEligibility(checkId: string) {
@@ -1811,7 +1900,7 @@ export default function App() {
   function savePlanAsJson() {
     const savedAt = new Date();
     const fileName = planFileName(studentName, savedAt);
-    const contents = JSON.stringify(exportedPlan(studentName, selections, priorCourses, diplomaType, eligibilityChecks, grade, isOverview, savedAt), null, 2);
+    const contents = JSON.stringify(exportedPlan(studentName, selections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks, grade, isOverview, savedAt), null, 2);
     const url = window.URL.createObjectURL(new Blob([contents], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
@@ -1824,7 +1913,7 @@ export default function App() {
 
   function savePlanAsPdf() {
     const savedAt = new Date();
-    const planData = exportedPlan(studentName, selections, priorCourses, diplomaType, eligibilityChecks, grade, isOverview, savedAt);
+    const planData = exportedPlan(studentName, selections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks, grade, isOverview, savedAt);
     const url = window.URL.createObjectURL(createRecoverablePdf(planData));
     const link = document.createElement("a");
     link.href = url;
@@ -1853,6 +1942,7 @@ export default function App() {
       setStudentName(imported.plan.studentName);
       setSelections(imported.plan.selections);
       setPriorCourses(imported.plan.priorCourses);
+      setPriorCourseGrades(imported.plan.priorCourseGrades);
       setDiplomaType(imported.plan.diplomaType);
       setEligibilityChecks(imported.plan.eligibilityChecks);
       const gradeMatch = imported.activeView.match(/^grade-(7|8|9|10|11|12)$/);
@@ -1876,6 +1966,7 @@ export default function App() {
     window.localStorage.removeItem("rcms-course-plan-v1");
     setSelections(emptySelections());
     setPriorCourses([]);
+    setPriorCourseGrades({});
     setDiplomaType("advanced");
     setEligibilityChecks({});
     setGrade("7");
@@ -1935,7 +2026,12 @@ export default function App() {
         </div>
 
         {isOverview ? (
-          <PlanOverview selections={selections} onEditGrade={(item) => { setGrade(item); setIsOverview(false); }} />
+          <PlanOverview
+            selections={selections}
+            priorCourses={priorCourses}
+            priorCourseGrades={priorCourseGrades}
+            onEditGrade={(item) => { setGrade(item); setIsOverview(false); }}
+          />
         ) : <>
         <div className="grade-context">
           <p className="grade-note" id="planner-title">{plan.note}</p>
@@ -2035,9 +2131,28 @@ export default function App() {
                   <fieldset className="prior-group" key={group.label}>
                     <legend>{group.label}</legend>
                     <div className="check-grid">
-                      {group.courses.map((item) => (
-                        <label key={item.id}><input type="checkbox" checked={priorCourses.includes(item.id)} onChange={() => togglePriorCourse(item.id)} /> {item.label}</label>
-                      ))}
+                      {group.courses.map((item) => {
+                        const selected = priorCourses.includes(item.id);
+                        const receivesGrade = priorCourseReceivesGrade(item);
+                        const creditLabel = collegeCreditDetails[item.id] ? "College + HS credit" : item.highSchoolCredit ? "HS credit" : "";
+                        return (
+                          <div className="prior-course-entry" key={item.id}>
+                            <label className="prior-course-check">
+                              <input type="checkbox" checked={selected} onChange={() => togglePriorCourse(item.id)} />
+                              <span>{item.label}{creditLabel && <small>{creditLabel}</small>}</span>
+                            </label>
+                            {selected && receivesGrade && (
+                              <label className="prior-grade-field">
+                                <span>Grade for {item.label}</span>
+                                <select value={priorCourseGrades[item.id] ?? ""} onChange={(event) => updatePriorCourseGrade(item.id, event.target.value as GradeMark | "")}>
+                                  <option value="">No grade entered</option>
+                                  <GradeOptions />
+                                </select>
+                              </label>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   </fieldset>
                 ))}
@@ -2114,7 +2229,13 @@ export default function App() {
         </>}
       </section>
 
-      <PrintPlan studentName={studentName} selections={selections} diplomaType={diplomaType} />
+      <PrintPlan
+        studentName={studentName}
+        selections={selections}
+        priorCourses={priorCourses}
+        priorCourseGrades={priorCourseGrades}
+        diplomaType={diplomaType}
+      />
 
       <footer>
         <p>Planning aid only. Final courses depend on school offerings, enrollment, prerequisites, graduation requirements, and counselor review.</p>

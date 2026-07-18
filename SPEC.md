@@ -61,6 +61,7 @@ Each high-school grade uses a compact seven-category planning chart for English,
 
 - Grade 7 checks the “completed before grade 7” list.
 - The pre-grade-7 list includes all earlier courses needed by the advanced choices shown in grade 7.
+- When a selected pre-grade-7 course carries high-school or college credit, show a grade field, persist the entered grade, and include it in the projected transcript GPA.
 - Group pre-grade-7 choices by subject. English early placement follows English 7 → 8 → 9 → 10 → 11 → 12, while the typical grade-level English course remains open without an early-placement check.
 - Social Studies early placement follows U.S. History 7 → Civics 8 → World History & Geography 1 → World History & Geography 2. Virginia & U.S. History requires World History & Geography 1 or 2, and Virginia & U.S. Government requires Virginia & U.S. History.
 - Each later grade checks the complete course history from all earlier grades. A prerequisite completed more than one year earlier remains valid.
@@ -148,3 +149,4 @@ Offerings can change because of staffing, enrollment, scheduling conflicts, supp
 21. Pre-grade-7 English work unlocks the next English level when it is planned earlier than its typical grade; the same checklist continues to unlock defined Math, Science, language, and elective prerequisites.
 22. Overview prominently shows cumulative weighted and unweighted transcript GPA estimates based only on graded high-school-credit coursework.
 23. A planner-exported JSON or PDF file can be loaded into the app, restores its saved view and selections, and remains fully editable; unrelated PDFs are rejected with a clear message.
+24. Selecting a high-school- or college-credit course completed before grade 7 reveals an editable grade field, and the grade survives local persistence plus JSON/PDF round trips.
