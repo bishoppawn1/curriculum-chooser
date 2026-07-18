@@ -72,6 +72,7 @@ Each high-school grade uses a compact seven-category planning chart for English,
 
 - Every selected course must show a prominent STANDARD, HONORS, or AP designation and its weighted-GPA point modifier.
 - Honors high-school-credit courses use a +0.5 modifier and AP courses use a +1.0 modifier; middle-school Honors courses explicitly show that they have no transcript weight.
+- Show the estimated unweighted and weighted GPA at the same time; do not require the user to switch between GPA modes.
 - Save plans locally in the browser and do not send student data to a server.
 - Run as a standalone React/Vite static app.
 - Do not use ChatGPT Sites, Vinext, Next.js, or Cloudflare Workers.
@@ -126,8 +127,9 @@ Offerings can change because of staffing, enrollment, scheduling conflicts, supp
 9. The chart works on desktop and mobile.
 10. `npm run build` passes.
 11. Selected courses prominently show their level and exact GPA point modifier.
-12. Course prerequisites and DE eligibility checks are presented as separate concepts.
-13. Selected courses show availability, credit, and collapsed explanation details.
-14. Math uses the same single course/version/grade layout as the other required core subjects.
-15. The Standard/Advanced Studies credit table updates from selections and clearly identifies its unverified requirements.
-16. Plan checks identify missing categories, duplicate selections, unchecked eligibility, and availability uncertainty.
+12. Unweighted and weighted GPA estimates are visible simultaneously and update from the same entered grades.
+13. Course prerequisites and DE eligibility checks are presented as separate concepts.
+14. Selected courses show availability, credit, and collapsed explanation details.
+15. Math uses the same single course/version/grade layout as the other required core subjects.
+16. The Standard/Advanced Studies credit table updates from selections and clearly identifies its unverified requirements.
+17. Plan checks identify missing categories, duplicate selections, unchecked eligibility, and availability uncertainty.
