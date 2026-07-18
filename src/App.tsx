@@ -629,7 +629,31 @@ function fallSemesterCourseIds(gradeSelections: Record<string, Selection>) {
     .map((value) => value.primary);
 }
 
-function sanitizeSelections(selections: Selections, priorCourses: string[]) {
+function courseFamilyId(courseId: string) {
+  return courseVersionDetails[courseId]?.familyId ?? courseId;
+}
+
+function electiveFamilyIdsExcept(
+  electiveSlots: ElectiveSlot[],
+  gradeSelections: Record<string, Selection>,
+  exceptSlotId: string,
+  exceptField: "primary" | "secondary",
+) {
+  const familyIds: string[] = [];
+  for (const electiveSlot of electiveSlots) {
+    const value = gradeSelections[electiveSlot.id];
+    if (!value) continue;
+    if (!(electiveSlot.id === exceptSlotId && exceptField === "primary") && value.primary) {
+      familyIds.push(courseFamilyId(value.primary));
+    }
+    if (value.mode === "semester" && !(electiveSlot.id === exceptSlotId && exceptField === "secondary") && value.secondary) {
+      familyIds.push(courseFamilyId(value.secondary));
+    }
+  }
+  return [...new Set(familyIds)];
+}
+
+export function sanitizeSelections(selections: Selections, priorCourses: string[]) {
   const next: Selections = structuredClone(selections);
   for (const grade of ["7", "8", "9", "10", "11", "12"] as Grade[]) {
     next[grade] ??= {};
@@ -643,6 +667,19 @@ function sanitizeSelections(selections: Selections, priorCourses: string[]) {
       };
     }
 
+    const electiveSlots = plans[grade].slots.filter((slot): slot is ElectiveSlot => slot.kind === "elective");
+    const usedElectiveFamilies = new Set<string>();
+    for (const electiveSlot of electiveSlots) {
+      const value = next[grade][electiveSlot.id];
+      if (!value?.primary) continue;
+      const familyId = courseFamilyId(value.primary);
+      if (usedElectiveFamilies.has(familyId)) {
+        next[grade][electiveSlot.id] = { ...value, primary: "", primaryGrade: "" };
+      } else {
+        usedElectiveFamilies.add(familyId);
+      }
+    }
+
     const completedInFall = fallSemesterCourseIds(next[grade]);
     for (const [slotId, value] of Object.entries(next[grade])) {
       const secondary = findCourse(grade, value.secondary);
@@ -652,6 +689,17 @@ function sanitizeSelections(selections: Selections, priorCourses: string[]) {
         secondary: secondaryIsValid ? value.secondary : "",
         secondaryGrade: secondaryIsValid ? value.secondaryGrade ?? "" : "",
       };
+    }
+
+    for (const electiveSlot of electiveSlots) {
+      const value = next[grade][electiveSlot.id];
+      if (value?.mode !== "semester" || !value.secondary) continue;
+      const familyId = courseFamilyId(value.secondary);
+      if (usedElectiveFamilies.has(familyId)) {
+        next[grade][electiveSlot.id] = { ...value, secondary: "", secondaryGrade: "" };
+      } else {
+        usedElectiveFamilies.add(familyId);
+      }
     }
   }
   return next;
@@ -975,6 +1023,7 @@ function CoursePicker({
   label,
   visibleLabel = true,
   additionalCompleted = [],
+  blockedFamilyIds = [],
   onChange,
 }: {
   courses: Course[];
@@ -985,6 +1034,7 @@ function CoursePicker({
   label: string;
   visibleLabel?: boolean;
   additionalCompleted?: string[];
+  blockedFamilyIds?: string[];
   onChange: (courseId: string) => void;
 }) {
   const families = groupCourseFamilies(courses);
@@ -996,6 +1046,7 @@ function CoursePicker({
       return;
     }
     const family = families.find((item) => item.id === familyId);
+    if (!family || blockedFamilyIds.includes(family.id)) return;
     const firstAvailable = family && sortedVersions(family.courses).find((item) => isAvailable(item, grade, selections, priorCourses, additionalCompleted));
     onChange(firstAvailable?.id ?? "");
   }
@@ -1007,11 +1058,13 @@ function CoursePicker({
         <select value={selectedFamily?.id ?? ""} onChange={(event) => chooseFamily(event.target.value)}>
           <option value="">Select a course</option>
           {families.map((family) => {
-            const available = family.courses.some((item) => isAvailable(item, grade, selections, priorCourses, additionalCompleted));
+            const duplicate = blockedFamilyIds.includes(family.id);
+            const available = !duplicate && family.courses.some((item) => isAvailable(item, grade, selections, priorCourses, additionalCompleted));
             const allDualEnrollment = family.courses.every((item) => courseWeightDetails(item).designation === "DE");
             const suffix = allDualEnrollment ? " • college credit" : family.courses.some((item) => item.highSchoolCredit) ? " • HS credit" : "";
             const reason = family.courses.map((item) => unavailableReasonFor(item, grade)).find(Boolean);
-            return <option key={family.id} value={family.id} disabled={!available}>{family.label}{suffix}{available ? "" : ` — ${reason}`}</option>;
+            const unavailable = duplicate ? "already selected in another elective" : reason;
+            return <option key={family.id} value={family.id} disabled={!available}>{family.label}{suffix}{available ? "" : ` — ${unavailable}`}</option>;
           })}
         </select>
       </label>
@@ -1121,8 +1174,10 @@ export default function App() {
           diplomaType?: DiplomaType;
           eligibilityChecks?: Record<string, boolean>;
         };
-        setSelections({ ...emptySelections(), ...(data.selections ?? {}) });
-        setPriorCourses(data.priorCourses ?? []);
+        const loadedPriorCourses = data.priorCourses ?? [];
+        const loadedSelections = { ...emptySelections(), ...(data.selections ?? {}) };
+        setSelections(sanitizeSelections(loadedSelections, loadedPriorCourses));
+        setPriorCourses(loadedPriorCourses);
         setDiplomaType(data.diplomaType === "standard" ? "standard" : "advanced");
         setEligibilityChecks(data.eligibilityChecks ?? {});
       }
@@ -1341,6 +1396,7 @@ export default function App() {
                             priorCourses={priorCourses}
                             value={value.primary}
                             label={value.mode === "yearlong" ? "Course" : "Fall semester"}
+                            blockedFamilyIds={electiveFamilyIdsExcept(electiveSlots, gradeSelections, slot.id, "primary")}
                             onChange={(courseId) => updateSelection(slot.id, { primary: courseId, primaryGrade: "" })}
                           />
                           <CourseSupport grade={grade} courseId={value.primary} highSchoolCredits={value.mode === "semester" ? 0.5 : 1} eligibilityChecks={eligibilityChecks} onToggleEligibility={toggleEligibility} />
@@ -1355,6 +1411,7 @@ export default function App() {
                             value={value.secondary}
                             label="Spring semester"
                             additionalCompleted={completedInFall}
+                            blockedFamilyIds={electiveFamilyIdsExcept(electiveSlots, gradeSelections, slot.id, "secondary")}
                             onChange={(courseId) => updateSelection(slot.id, { secondary: courseId, secondaryGrade: "" })}
                           />
                           <CourseSupport grade={grade} courseId={value.secondary} highSchoolCredits={0.5} eligibilityChecks={eligibilityChecks} onToggleEligibility={toggleEligibility} />

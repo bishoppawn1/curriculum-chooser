@@ -38,6 +38,8 @@ Each RCMS student takes seven classes each semester:
 
 The two elective periods can contain two yearlong electives, one yearlong plus two semester electives, or four semester electives.
 
+The same elective course family cannot be selected more than once in the same grade, including across elective periods, fall/spring semester halves, or different versions of that course. Duplicate options remain visible but disabled with an explanation.
+
 Grade 7 core choices include English 7 levels, the school-published math placements from Pre-Algebra through Geometry HN, U.S. History 7 levels, Science 7 levels, and Health & PE 7.
 
 Grade 8 core choices include English 8 levels, Algebra 1 through Algebra II HN, Civics 8 levels, Science 8 levels, and Health & PE 8.
@@ -134,3 +136,4 @@ Offerings can change because of staffing, enrollment, scheduling conflicts, supp
 15. Math uses the same single course/version/grade layout as the other required core subjects.
 16. The Standard/Advanced Studies credit table updates from selections and clearly identifies its unverified requirements.
 17. Plan checks identify missing categories, duplicate selections, unchecked eligibility, and availability uncertainty.
+18. A student cannot select the same elective course family twice within one grade.
