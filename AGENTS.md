@@ -2,7 +2,9 @@
 
 ## Project purpose
 
-This repository contains a standalone FCPS middle-school curriculum chooser for grades 6–8. Students use an editable chart to select required core courses and electives. The app must enforce course prerequisites across grade levels.
+This repository contains a standalone curriculum chooser specifically for **Fairfax County Public Schools (FCPS), Virginia**, for grades 6–8. Students use an editable chart to select required core courses and electives. The app must apply FCPS course names, pathways, and prerequisite rules.
+
+Do not adapt the data to another school division that also uses the initials “FCPS,” such as Frederick County Public Schools, without an explicit request.
 
 ## Technology
 
@@ -49,12 +51,21 @@ Run `npm run build` after implementation changes. The build must pass TypeScript
 
 ## Course-data changes
 
+- Treat current Fairfax County Public Schools sources as authoritative. Start with:
+  - FCPS course catalogs: `https://www.fcps.edu/academics/coursecatalogs`
+  - FCPS middle-school mathematics: `https://www.fcps.edu/academics/middle/mathematics`
+  - FCPS mathematics sequencing: `https://www.fcps.edu/academics/graduation-requirements/course-sequencing/course-sequencing-mathematics`
+  - The student's school-specific academic-advising and course-selection materials
+- Never substitute generic Virginia, national, or another school division's requirements for an FCPS rule.
+- Use FCPS terminology. Middle-school advanced core courses are called “Honors,” not “AP.”
+- FCPS currently allows open enrollment in Prealgebra and Prealgebra Honors for grade 7 and Algebra 1 or Algebra 1 Honors for grade 8. Do not invent prerequisites for those open-enrollment options.
+- FCPS allows a student who completed Advanced Math 6 to choose Algebra 1 Honors in grade 7. Geometry follows Algebra 1, and Algebra 2 follows Algebra 1 and Geometry.
 - Use stable course IDs for prerequisite matching.
 - Keep the display name separate from the stable ID.
 - Express prerequisites with explicit course IDs and a readable requirement label.
 - Check both the primary and secondary course in an elective period.
 - When adding a course level such as Spanish 2 or Algebra 2 Honors, add its earlier level and prerequisite rule at the same time.
-- Prefer current official FCPS course catalogs or school selection sheets when changing course names or requirements.
+- Verify current official FCPS course catalogs or school selection sheets when changing course names or requirements.
 - Note school-specific or uncertain offerings instead of implying countywide availability.
 
 ## UI and accessibility
@@ -72,4 +83,3 @@ Run `npm run build` after implementation changes. The build must pass TypeScript
 - Do not replace the chart with cards, a wizard, or a decorative landing page.
 - Do not add sign-in, student records, counselor messaging, or official registration submission without an explicit request.
 - Keep unrelated starter files and generated build artifacts out of source control.
-

@@ -2,7 +2,9 @@
 
 ## 1. Overview
 
-The FCPS Middle School Course Planner is a standalone web app that helps a student or family create a possible course plan for grades 6, 7, and 8. The primary interface is an editable schedule chart, not an official FCPS registration form.
+The FCPS Middle School Course Planner is a standalone web app specifically for **Fairfax County Public Schools (FCPS), Virginia**. It helps a student or family create a possible course plan for grades 6, 7, and 8. The primary interface is an editable schedule chart, not an official FCPS registration form.
+
+In this specification, “FCPS” never refers to Frederick County Public Schools or another division with the same initials.
 
 The planner shows the required schedule slots for each grade, lists applicable course choices, and prevents a student from selecting an advanced course before completing its prerequisite.
 
@@ -14,6 +16,7 @@ The planner shows the required schedule slots for each grade, lists applicable c
 - Make course sequences such as Algebra 1 → Geometry → Algebra 2 and Spanish 1 → Spanish 2 understandable.
 - Prevent invalid course sequences.
 - Work locally and on ordinary static web hosts without ChatGPT Sites.
+- Use Fairfax County Public Schools course names, terminology, and sequencing rules.
 
 ## 3. Non-goals
 
@@ -67,7 +70,13 @@ The chart contains:
 
 ## 5. Elective periods
 
-Each elective period supports either:
+The user first chooses one of three elective formats:
+
+- two full-year courses;
+- one full-year course and two semester courses; or
+- four semester courses.
+
+The format selector controls both elective periods. Each elective period then supports either:
 
 - one yearlong elective; or
 - two semester electives, one for fall and one for spring.
@@ -84,13 +93,24 @@ A course with a prerequisite is selectable only when one of its accepted prerequ
 - Grade 8 checks the grade 7 chart.
 - Grade 8 does not skip grade 7 and use an unrelated grade 6 selection directly.
 
+Only courses with an actual FCPS prerequisite are locked. An FCPS open-enrollment course must remain selectable even when the prior-grade chart is empty.
+
+### FCPS mathematics rules
+
+- Grade 7 Prealgebra and Prealgebra Honors are open-enrollment options.
+- Grade 7 Algebra 1 Honors is available after Advanced Math 6.
+- Grade 8 Algebra 1 and Algebra 1 Honors are open-enrollment options.
+- Geometry or Geometry Honors follows successful completion of Algebra 1 or Algebra 1 Honors.
+- Algebra 2 or Algebra 2 Honors follows successful completion of both Algebra 1 and Geometry.
+- Geometry, Algebra 2, and other accelerated courses may depend on the student's school, FCPS Online availability, counselor approval, or individual placement.
+
 ### Required examples
 
 | Desired course | Accepted earlier course |
 | --- | --- |
 | Algebra 1 Honors in grade 7 | Advanced Math 6 |
 | Geometry Honors | Algebra 1 or Algebra 1 Honors |
-| Algebra 2 Honors | Geometry or Geometry Honors |
+| Algebra 2 Honors | Algebra 1 and Geometry or Geometry Honors |
 | Spanish 1 Part B | Spanish 1 Part A |
 | Spanish 2 | Spanish 1 or Spanish 1 Part B |
 | Spanish 3 | Spanish 2 |
@@ -101,6 +121,8 @@ A course with a prerequisite is selectable only when one of its accepted prerequ
 | Engineering 3 | Engineering 2 |
 
 Equivalent rules apply to other sequential world-language courses included in the data.
+
+Algebra 1 and Algebra 1 Honors in grade 8 are intentionally not listed as locked courses because FCPS identifies them as open enrollment for eighth graders.
 
 ### Locked state
 
@@ -132,8 +154,8 @@ Selecting one of these entries is treated as prior completion for grade 7 prereq
 ## 8. Course-selection behavior
 
 - Each required core slot accepts exactly one course.
-- Each elective period uses a yearlong/semester mode selector.
-- Changing an elective period's mode clears that period's previous choices.
+- A single elective-format selector switches between two full-year courses, one full-year plus two semester courses, and four semester courses.
+- Changing the elective format clears only elective periods whose course length changes.
 - The interface displays completed slots as a count out of seven.
 - A core slot is complete when one course is selected.
 - A yearlong elective period is complete when one course is selected.
@@ -181,3 +203,14 @@ The feature is complete when all of the following are true:
 11. The layout works at desktop and mobile widths.
 12. `npm run build` succeeds and produces a standalone `dist/` directory.
 
+## 13. FCPS sources of truth
+
+Course data and rules must be checked against the current versions of:
+
+- Fairfax County Public Schools course catalogs: `https://www.fcps.edu/academics/coursecatalogs`
+- FCPS middle-school mathematics guidance: `https://www.fcps.edu/academics/middle/mathematics`
+- FCPS mathematics course sequencing: `https://www.fcps.edu/academics/graduation-requirements/course-sequencing/course-sequencing-mathematics`
+- FCPS Honors guidance for grades 7–8: `https://www.fcps.edu/academics/advanced-academic-programs-aap/middle/honors-grades-7-8`
+- The current course-selection sheet and academic-advising page for the student's FCPS school
+
+Countywide catalogs describe possible courses, but FCPS states that optional courses may not be offered at every school. The app must continue to display a school-availability disclaimer and must not promise placement.

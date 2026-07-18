@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 
 type Grade = "6" | "7" | "8";
 type Mode = "yearlong" | "semester";
+type ElectiveFormat = "two-yearlong" | "mixed" | "four-semester";
 
 type Course = {
   id: string;
@@ -37,6 +38,12 @@ type Selection = {
 };
 
 type Selections = Record<Grade, Record<string, Selection>>;
+
+const electiveFormats: { id: ElectiveFormat; label: string; detail: string; modes: [Mode, Mode] }[] = [
+  { id: "two-yearlong", label: "2 full-year courses", detail: "One course in each elective period", modes: ["yearlong", "yearlong"] },
+  { id: "mixed", label: "1 full-year + 2 semester courses", detail: "One full-year period and one split period", modes: ["yearlong", "semester"] },
+  { id: "four-semester", label: "4 semester courses", detail: "Two courses in each elective period", modes: ["semester", "semester"] },
+];
 
 const course = (id: string, label: string, extra: Omit<Course, "id" | "label"> = {}): Course => ({ id, label, ...extra });
 const requires = (anyOf: string[], label: string) => ({ prerequisite: { anyOf, label } });
@@ -142,8 +149,8 @@ const plans: Record<Grade, { note: string; slots: Slot[] }> = {
       { id: "english", label: "English", kind: "core", courses: [course("english8", "English 8"), course("english8h", "English 8 Honors")] },
       { id: "math", label: "Math", kind: "core", courses: [
         course("prealgebra", "Pre-Algebra"),
-        course("algebra1", "Algebra 1", { highSchoolCredit: true, ...requires(["math7", "prealgebra", "prealgebrah"], "Math 7 or Pre-Algebra") }),
-        course("algebra1h", "Algebra 1 Honors", { highSchoolCredit: true, ...requires(["math7", "prealgebra", "prealgebrah"], "Math 7 or Pre-Algebra") }),
+        course("algebra1", "Algebra 1", { highSchoolCredit: true }),
+        course("algebra1h", "Algebra 1 Honors", { highSchoolCredit: true }),
         course("geometryh", "Geometry Honors", { highSchoolCredit: true, ...requires(["algebra1", "algebra1h"], "Algebra 1") }),
         course("algebra2h", "Algebra 2 Honors", { highSchoolCredit: true, ...requires(["geometry", "geometryh"], "Geometry") }),
       ] },
@@ -199,6 +206,13 @@ function findCourse(grade: Grade, id: string) {
   }
 }
 
+function electiveFormatFor(slots: ElectiveSlot[], gradeSelections: Record<string, Selection>): ElectiveFormat {
+  const modes = slots.map((slot) => gradeSelections[slot.id]?.mode ?? "yearlong");
+  if (modes.every((mode) => mode === "semester")) return "four-semester";
+  if (modes.some((mode) => mode === "semester")) return "mixed";
+  return "two-yearlong";
+}
+
 function sanitizeSelections(selections: Selections, priorCourses: string[]) {
   const next: Selections = structuredClone(selections);
   for (const grade of ["7", "8"] as Grade[]) {
@@ -248,6 +262,8 @@ export default function App() {
 
   const plan = plans[grade];
   const gradeSelections = selections[grade] ?? {};
+  const electiveSlots = plan.slots.filter((slot): slot is ElectiveSlot => slot.kind === "elective");
+  const electiveFormat = electiveFormatFor(electiveSlots, gradeSelections);
   const completeCount = useMemo(() => plan.slots.filter((slot) => {
     const value = gradeSelections[slot.id];
     if (!value?.primary) return false;
@@ -265,8 +281,19 @@ export default function App() {
     });
   }
 
-  function changeMode(slotId: string, mode: Mode) {
-    updateSelection(slotId, { mode, primary: "", secondary: "" });
+  function changeElectiveFormat(format: ElectiveFormat) {
+    const formatModes = electiveFormats.find((item) => item.id === format)?.modes;
+    if (!formatModes) return;
+
+    setSelections((current) => {
+      const nextGrade = { ...current[grade] };
+      electiveSlots.forEach((slot, index) => {
+        const existing = nextGrade[slot.id] ?? { mode: "yearlong" as Mode, primary: "", secondary: "" };
+        const mode = formatModes[index] ?? formatModes[formatModes.length - 1];
+        nextGrade[slot.id] = existing.mode === mode ? existing : { mode, primary: "", secondary: "" };
+      });
+      return sanitizeSelections({ ...current, [grade]: nextGrade }, priorCourses);
+    });
   }
 
   function togglePriorCourse(id: string) {
@@ -298,6 +325,25 @@ export default function App() {
 
         <div className="progress-track" aria-hidden="true"><span style={{ width: `${(completeCount / plan.slots.length) * 100}%` }} /></div>
         <p className="grade-note" id="planner-title">{plan.note}</p>
+
+        <fieldset className="elective-format">
+          <legend>Elective format</legend>
+          <p>Choose how the two elective periods are divided. Switching formats clears only the periods whose course length changes.</p>
+          <div className="format-options">
+            {electiveFormats.map((format) => (
+              <label key={format.id} className={electiveFormat === format.id ? "selected" : ""}>
+                <input
+                  type="radio"
+                  name={`elective-format-${grade}`}
+                  value={format.id}
+                  checked={electiveFormat === format.id}
+                  onChange={() => changeElectiveFormat(format.id)}
+                />
+                <span><strong>{format.label}</strong><small>{format.detail}</small></span>
+              </label>
+            ))}
+          </div>
+        </fieldset>
 
         {grade === "7" && (
           <fieldset className="prior-courses">
@@ -336,7 +382,6 @@ export default function App() {
                       </label>
                     ) : (
                       <div className="elective-fields">
-                        <label className="mode-field"><span>Length</span><select value={value.mode} onChange={(event) => changeMode(slot.id, event.target.value as Mode)}><option value="yearlong">One yearlong course</option><option value="semester">Two semester courses</option></select></label>
                         <label><span>{value.mode === "yearlong" ? "Course" : "Fall semester"}</span><select value={value.primary} onChange={(event) => updateSelection(slot.id, { primary: event.target.value })}><option value="">Select a course</option><CourseOptions courses={options} grade={grade} selections={selections} priorCourses={priorCourses} /></select></label>
                         {value.mode === "semester" && <label><span>Spring semester</span><select value={value.secondary} onChange={(event) => updateSelection(slot.id, { secondary: event.target.value })}><option value="">Select a course</option><CourseOptions courses={slot.semester} grade={grade} selections={selections} priorCourses={priorCourses} /></select></label>}
                       </div>
