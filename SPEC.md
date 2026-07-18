@@ -1,217 +1,133 @@
-# FCPS Middle School Course Planner — Product Specification
+# FCPS Course Planner: Rachel Carson to Skyview — Product Specification
 
-## 1. Overview
+## 1. Scope
 
-The FCPS Middle School Course Planner is a standalone web app specifically for **Fairfax County Public Schools (FCPS), Virginia**. It helps a student or family create a possible course plan for grades 6, 7, and 8. The primary interface is an editable schedule chart, not an official FCPS registration form.
+The planner follows a Fairfax County Public Schools path from **Rachel Carson Middle School (RCMS)** through **Skyview High School**:
 
-In this specification, “FCPS” never refers to Frederick County Public Schools or another division with the same initials.
+- Middle School: grades 7 and 8 at Rachel Carson
+- High School: grades 9, 10, 11, and 12 at Skyview
 
-The planner shows the required schedule slots for each grade, lists applicable course choices, and prevents a student from selecting an advanced course before completing its prerequisite.
+Rachel Carson does not have a sixth-grade schedule. Sixth-grade, summer, or transfer coursework appears only in a compact “completed before grade 7” section when it affects placement or prerequisites.
 
-## 2. Goals
+Skyview opens in 2026–27 with grades 9 and 10. The grade 11 and 12 charts are future planning based on FCPS sequences; school-specific choices must be updated when Skyview publishes those offerings. The app is a planning aid, not an official registration form or placement decision.
 
-- Make middle-school course requirements easy to understand.
-- Show how many required core classes and elective periods each grade contains.
-- Let users compare and modify plans for grades 6–8.
-- Make course sequences such as Algebra 1 → Geometry → Algebra 2 and Spanish 1 → Spanish 2 understandable.
-- Prevent invalid course sequences.
-- Work locally and on ordinary static web hosts without ChatGPT Sites.
-- Use Fairfax County Public Schools course names, terminology, and sequencing rules.
+## 2. Navigation and interface
 
-## 3. Non-goals
+- Show Grade 7 and Grade 8 under a visible **Middle School** heading.
+- Show Grade 9, Grade 10, Grade 11, and Grade 12 under a visible **High School** heading.
+- Use a short, subject-first grid with each course category directly above its selector.
+- Select the base course first. When it has multiple versions, show a second **Version** dropdown immediately below it for Standard, Honors, AAP Center, AP, or another published version.
+- Do not list Standard and Honors as unrelated courses in the first dropdown. For example, list “Algebra 2” once, then offer Standard and Honors in its Version dropdown.
+- Do not show slot numbers, a slot column, a completion counter, or a slot progress bar.
+- Keep pre-grade-7 information collapsed until opened.
+- Keep course explanations, graduation details, and plan checks compact and collapsible.
+- Use native, keyboard-accessible controls and reflow on mobile without horizontal page scrolling.
 
-- Submitting official FCPS course requests
-- Replacing advice from an FCPS counselor
-- Guaranteeing that a course is offered at a particular school
-- Student accounts, cloud synchronization, or permanent student records
-- Automatic placement decisions based on grades, tests, IEPs, or counselor approval
+## 3. Rachel Carson schedule
 
-## 4. Supported grades
-
-### Grade 6
-
-The chart contains:
+Each RCMS student takes seven classes each semester:
 
 1. English
 2. Math
-3. Science
-4. Social Studies
-5. Health and Physical Education
-6. Elective or special 1
-7. Elective or special 2
-
-Grade 6 scheduling varies by school because most FCPS sixth graders attend elementary school, while some FCPS middle schools include grade 6. The interface must display this qualification.
-
-### Grade 7
-
-The chart contains:
-
-1. English
-2. Math
-3. Science
-4. Social Studies
+3. Social Studies (U.S. History 7 or Civics 8)
+4. Science
 5. Health and Physical Education
 6. Elective period 1
 7. Elective period 2
 
-Grade 7 is the first middle-school planning year for many FCPS students. Users must be able to record advanced or high-school-credit courses completed before grade 7 so that valid grade 7 options can unlock.
+The two elective periods can contain two yearlong electives, one yearlong plus two semester electives, or four semester electives.
 
-### Grade 8
+Grade 7 core choices include English 7 levels, the school-published math placements from Pre-Algebra through Geometry HN, U.S. History 7 levels, Science 7 levels, and Health & PE 7.
 
-The chart contains:
+Grade 8 core choices include English 8 levels, Algebra 1 through Algebra II HN, Civics 8 levels, Science 8 levels, and Health & PE 8.
 
-1. English
-2. Math
-3. Science
-4. Social Studies
-5. Health and Physical Education
-6. Elective period 1
-7. Elective period 2
+Normal grade-level electives from Rachel Carson's current selection materials appear first. Later FCPS levels also remain available for exceptional placement. Audition, teacher-recommendation, concurrent-enrollment, and school-placement conditions must be included in the course label or prerequisite message.
 
-## 5. Elective periods
+There is no hard grade-level ceiling. A grade 7 student may select a later FCPS course in any matching subject—for example, Algebra 2 Honors after recording Geometry as completed. This flexibility applies to English, math, science, social studies, Health & PE, world languages, arts, and technology electives. The same rule continues in later grades so an accelerated path does not dead-end.
 
-The user first chooses one of three elective formats:
+## 4. Skyview schedule
 
-- two full-year courses;
-- one full-year course and two semester courses; or
-- four semester courses.
+Each high-school grade uses a compact seven-category planning chart for English, Math, Science, Social Studies, Health & PE or another required course where appropriate, and two electives.
 
-The format selector controls both elective periods. Each elective period then supports either:
+- Grades 9 and 10 represent Skyview's 2026–27 opening-year population. Standard offerings remain enrollment-dependent.
+- Grades 11 and 12 must be visibly described as future plans while Skyview phases in older grades.
+- Use official FCPS naming and sequencing. Do not imply that a school-specific course is guaranteed when Skyview has not published it.
+- Skyview specialty choices may include its officially announced computer science, Advanced Programming, and AI Foundations pathways when grade-appropriate.
 
-- one yearlong elective; or
-- two semester electives, one for fall and one for spring.
+## 5. Prerequisites
 
-A complete elective period requires one selected yearlong course or both semester selections.
+- Grade 7 checks the “completed before grade 7” list.
+- The pre-grade-7 list includes all earlier courses needed by the advanced choices shown in grade 7.
+- Each later grade checks the complete course history from all earlier grades. A prerequisite completed more than one year earlier remains valid.
+- A fall-semester course also satisfies a prerequisite for a spring-semester course in the same grade, even when the two courses use different elective periods.
+- Geometry requires Algebra 1; Algebra 2 requires Geometry; later math courses require the appropriate earlier sequence.
+- Language levels require the previous level, such as Spanish 2 after Spanish 1.
+- Sequential art, coding, engineering, theatre, programming, and AI courses require their defined earlier course.
+- Locked options must name the missing prerequisite.
+- Removing an earlier prerequisite must clear now-invalid later selections.
+- Removing a fall prerequisite must likewise clear its dependent spring selection.
+- Keep prerequisites separate from admission or placement eligibility. Prerequisites control whether a course can be chosen; eligibility items remain visible checks that require official confirmation.
 
-## 6. Prerequisite behavior
+## 6. Data and operation
 
-### General rule
+- Every selected course must show a prominent STANDARD, HONORS, or AP designation and its weighted-GPA point modifier.
+- Honors high-school-credit courses use a +0.5 modifier and AP courses use a +1.0 modifier; middle-school Honors courses explicitly show that they have no transcript weight.
+- Save plans locally in the browser and do not send student data to a server.
+- Run as a standalone React/Vite static app.
+- Do not use ChatGPT Sites, Vinext, Next.js, or Cloudflare Workers.
+- `npm run build` must generate a deployable `dist/` directory.
 
-A course with a prerequisite is selectable only when one of its accepted prerequisites appears in the immediately previous grade's plan.
+## 6B. Planning support
 
-- Grade 7 checks the grade 6 chart and the “completed before grade 7” list.
-- Grade 8 checks the grade 7 chart.
-- Grade 8 does not skip grade 7 and use an unrelated grade 6 selection directly.
+- Show a visible availability label for every selected course: Rachel Carson published choice, exceptional/counselor-review option, Skyview enrollment-dependent choice, unconfirmed FCPS option, or future Skyview plan.
+- Show high-school credit and published partner-college credit for the selected course. AP college credit must be described as exam- and college-policy-dependent rather than guaranteed.
+- Compare planned credits with the current FCPS Standard and Advanced Studies diploma category totals. Count excess subject credits toward electives where appropriate.
+- Keep a collapsed plain-language explanation and prerequisite summary with each selected course.
+- Warn about missing graduation categories, repeated courses, unchecked eligibility, and unconfirmed Skyview offerings.
+- State that verified credits, CPR/AED, virtual-course participation, credentials/work-based learning, and other non-course rules are not fully verified by the planner.
 
-Only courses with an actual FCPS prerequisite are locked. An FCPS open-enrollment course must remain selectable even when the prior-grade chart is empty.
+## 6A. College-credit courses
 
-### FCPS mathematics rules
+- Include FCPS Dual Enrollment (DE) options in English, mathematics, science, social studies, world languages, and technology where represented in the 2026–27 FCPS list.
+- Treat DE as a separate version from Standard, Honors, and AP.
+- Apply FCPS's +1.0 DE GPA weighting.
+- Disable DE for grades 7–9. Grade 10 participation is course-specific; all DE selections remain subject to the partner college's admission, placement, and prerequisite rules.
+- Explain that availability varies by school. Listing an FCPS DE course does not promise that Skyview will run it.
+- Use the exact selected DE course ID for prerequisites and persistence.
+- In mathematics, include Standard, Honors, AP, and DE versions of Precalculus with Trigonometry; Calculus AB/BC and Calculus 1/1 & 2 DE; and the later Multivariable Calculus/Linear Algebra DE and Differential Equations DE sequence.
+- Do not present “Trigonometry” as a guaranteed standalone Skyview course when FCPS publishes it as part of Precalculus with Trigonometry.
 
-- Grade 7 Prealgebra and Prealgebra Honors are open-enrollment options.
-- Grade 7 Algebra 1 Honors is available after Advanced Math 6.
-- Grade 8 Algebra 1 and Algebra 1 Honors are open-enrollment options.
-- Geometry or Geometry Honors follows successful completion of Algebra 1 or Algebra 1 Honors.
-- Algebra 2 or Algebra 2 Honors follows successful completion of both Algebra 1 and Geometry.
-- Geometry, Algebra 2, and other accelerated courses may depend on the student's school, FCPS Online availability, counselor approval, or individual placement.
+## 7. Sources of truth
 
-### Required examples
+- Rachel Carson academic advising: `https://carsonms.fcps.edu/student-services/academic-advising-course-selection`
+- Rachel Carson 2026–27 course booklet: `https://carsonms.fcps.edu/sites/default/files/media/inline-files/26-27course%20catalog%20booklet.pdf`
+- Rachel Carson 2026–27 grade 7 selection sheet: `https://carsonms.fcps.edu/sites/default/files/media/inline-files/CourseSelectionSheet7%20DRAFT2026-2027_0.pdf`
+- Rachel Carson 2026–27 grade 8 selection sheet: `https://carsonms.fcps.edu/sites/default/files/media/inline-files/CourseSelectionSheet8%202026-2027_0.pdf`
+- Skyview official school page: `https://www.fcps.edu/skyview`
+- Skyview FAQ: `https://skyviewhs.fcps.edu/about/frequently-asked-questions`
+- Skyview academic advising: `https://skyviewhs.fcps.edu/student-services/course-selection-academic-advising`
+- FCPS course catalogs: `https://www.fcps.edu/academics/coursecatalogs`
+- FCPS Dual Enrollment: `https://www.fcps.edu/academics/dual-enrollment`
+- FCPS Dual Enrollment admissions criteria: `https://www.fcps.edu/academics/dual-enrollment/dual-enrollment-admissions-criteria`
+- FCPS graduation requirements for students entering grade 9 in 2018–19 or later: `https://www.fcps.edu/graduation-requirements-and-course-planning/first-time-ninth-2018-19`
 
-| Desired course | Accepted earlier course |
-| --- | --- |
-| Algebra 1 Honors in grade 7 | Advanced Math 6 |
-| Geometry Honors | Algebra 1 or Algebra 1 Honors |
-| Algebra 2 Honors | Algebra 1 and Geometry or Geometry Honors |
-| Spanish 1 Part B | Spanish 1 Part A |
-| Spanish 2 | Spanish 1 or Spanish 1 Part B |
-| Spanish 3 | Spanish 2 |
-| French 1 Part B | French 1 Part A |
-| French 2 | French 1 or French 1 Part B |
-| Latin 2 | Latin 1 |
-| Engineering 2 | Engineering 1 |
-| Engineering 3 | Engineering 2 |
+Offerings can change because of staffing, enrollment, scheduling conflicts, support placement, graduation requirements, and counselor review.
 
-Equivalent rules apply to other sequential world-language courses included in the data.
+## 8. Acceptance criteria
 
-Algebra 1 and Algebra 1 Honors in grade 8 are intentionally not listed as locked courses because FCPS identifies them as open enrollment for eighth graders.
-
-### Locked state
-
-When a prerequisite is missing:
-
-- the later course is disabled in its course selector;
-- the option states which earlier course is required; and
-- the chart explains which previous grade is being checked.
-
-### Removing a prerequisite
-
-If a user removes or changes an earlier course, every later selection that no longer meets its prerequisite must be cleared automatically. Validation must cascade from grade 7 to grade 8.
-
-## 7. Starting in grade 7
-
-The grade 7 view includes a “Courses completed before grade 7” section. It contains common prerequisite courses such as:
-
-- Advanced Math 6
-- Algebra 1 or Algebra 1 Honors
-- Geometry or Geometry Honors
-- Spanish 1 or Spanish 1 Part A/B
-- French 1 or French 1 Part A/B
-- Latin 1
-- Arabic 1
-- Japanese 1
-
-Selecting one of these entries is treated as prior completion for grade 7 prerequisite checks. It does not automatically fill an unrelated schedule slot.
-
-## 8. Course-selection behavior
-
-- Each required core slot accepts exactly one course.
-- A single elective-format selector switches between two full-year courses, one full-year plus two semester courses, and four semester courses.
-- Changing the elective format clears only elective periods whose course length changes.
-- The interface displays completed slots as a count out of seven.
-- A core slot is complete when one course is selected.
-- A yearlong elective period is complete when one course is selected.
-- A semester elective period is complete only when both semester courses are selected.
-- High-school-credit courses are labeled in the selector.
-
-## 9. Data persistence
-
-- Save the grade charts and pre-grade-7 course list in `localStorage`.
-- Restore saved data when the app opens again on the same device and browser.
-- Invalid or unreadable saved data must not prevent the app from loading.
-- No course-plan data is sent to a server.
-
-## 10. Layout and interaction
-
-- Use grade 6, 7, and 8 buttons to switch charts.
-- Show the active grade and a short grade-specific note.
-- Present a compact subject-first grid with each subject name above its editable course field.
-- Do not display slot numbers, a separate requirement column, a completion counter, or a progress bar.
-- Use native form controls.
-- On small screens, convert each table row into a readable vertical section.
-- Avoid decorative imagery and unnecessary visual effects.
-
-## 11. Hosting and operation
-
-- The app is a standard React/Vite static site.
-- `npm run dev` starts local development.
-- `npm run build` performs TypeScript validation and generates `dist/`.
-- The contents of `dist/` can be served by any ordinary static host.
-- The repository must not require ChatGPT Sites, Vinext, Next.js, Cloudflare Workers, or server infrastructure.
-
-## 12. Acceptance criteria
-
-The feature is complete when all of the following are true:
-
-1. Grades 6–8 each display seven clearly labeled course categories in a compact grid.
-2. Grade 7 and grade 8 each display five core requirements and two elective periods.
-3. Users can change every course selection through native controls.
-4. Users can switch among two full-year courses, one full-year plus two semester courses, and four semester courses.
-5. Grade 7 users can record courses completed before grade 7.
-6. Spanish 2 cannot be selected until Spanish 1 or Part B is present in the previous-grade data.
-7. Algebra 2 Honors cannot be selected until Geometry or Geometry Honors is present in the previous-grade data.
-8. Locked options name their missing prerequisite.
-9. Removing a prerequisite clears invalid dependent selections.
-10. Plans persist after a browser refresh on the same device.
-11. The layout works at desktop and mobile widths.
-12. `npm run build` succeeds and produces a standalone `dist/` directory.
-
-## 13. FCPS sources of truth
-
-Course data and rules must be checked against the current versions of:
-
-- Fairfax County Public Schools course catalogs: `https://www.fcps.edu/academics/coursecatalogs`
-- FCPS middle-school mathematics guidance: `https://www.fcps.edu/academics/middle/mathematics`
-- FCPS mathematics course sequencing: `https://www.fcps.edu/academics/graduation-requirements/course-sequencing/course-sequencing-mathematics`
-- FCPS Honors guidance for grades 7–8: `https://www.fcps.edu/academics/advanced-academic-programs-aap/middle/honors-grades-7-8`
-- The current course-selection sheet and academic-advising page for the student's FCPS school
-
-Countywide catalogs describe possible courses, but FCPS states that optional courses may not be offered at every school. The app must continue to display a school-availability disclaimer and must not promise placement.
+1. No grade 6 schedule or grade 6 tab is displayed.
+2. Grades 7 and 8 appear under Middle School; grades 9 through 12 appear under High School.
+3. Every grade uses the compact subject-first editable chart.
+4. Rachel Carson's normal choices appear first, with later FCPS levels available in every subject for exceptional placement.
+5. Skyview's opening and future grade-level status is accurately labeled.
+6. Sequential courses enforce their prerequisites from any earlier grade or, for grade 7, the pre-grade-7 completion list.
+7. Grade 7 can represent relevant coursework completed before RCMS.
+8. Plans persist after a browser refresh.
+9. The chart works on desktop and mobile.
+10. `npm run build` passes.
+11. Selected courses prominently show their level and exact GPA point modifier.
+12. Course prerequisites and DE eligibility checks are presented as separate concepts.
+13. Selected courses show availability, credit, and collapsed explanation details.
+14. Math uses the same single course/version/grade layout as the other required core subjects.
+15. The Standard/Advanced Studies credit table updates from selections and clearly identifies its unverified requirements.
+16. Plan checks identify missing categories, duplicate selections, unchecked eligibility, and availability uncertainty.
