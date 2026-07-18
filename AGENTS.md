@@ -25,17 +25,24 @@ The project is a standard static web app. Do not add ChatGPT Sites, Vinext, Next
 - `src/main.tsx`: React entry point
 - `index.html`: document shell and metadata
 - `SPEC.md`: product behavior and acceptance criteria
+- `src/plannerRules.test.ts`: course-rule, GPA, credit, export, and sanitization tests
+- `src/App.test.tsx`: user-interface, persistence, loading, undo, and accessibility tests
+- `vitest.config.ts`: automated test environment
 
 ## Commands
 
 ```bash
 npm install
 npm run dev
+npm test
+npm run test:watch
 npm run build
 npm run preview
 ```
 
-Run `npm run build` after implementation changes. The build must pass TypeScript checking and produce a static `dist/` directory.
+Run `npm test` and `npm run build` after implementation changes. The test suite must pass, TypeScript checking must pass, and the build must produce a static `dist/` directory.
+
+Every new feature, course rule, interface behavior, persistence change, import/export change, or bug fix must add or update automated tests in the same change. A feature is not complete when its new behavior is untested. Test both the underlying planner rule and the user-visible behavior when both layers change. Do not delete, skip, or weaken a valid assertion merely to make the suite pass.
 
 After every requested change, commit the completed work and push it to the configured GitHub remote. Do not include unrelated user files or changes in the commit.
 
