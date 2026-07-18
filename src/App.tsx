@@ -62,6 +62,13 @@ type Selection = {
 
 type Selections = Record<Grade, Record<string, Selection>>;
 
+type SavedPlan = {
+  selections: Selections;
+  priorCourses: string[];
+  diplomaType: DiplomaType;
+  eligibilityChecks: Record<string, boolean>;
+};
+
 type CourseFamily = {
   id: string;
   label: string;
@@ -574,6 +581,35 @@ const priorCourseChoices = uniqueCourses([course("advancedmath6", "Advanced Math
 
 const emptySelections = (): Selections => ({ "7": {}, "8": {}, "9": {}, "10": {}, "11": {}, "12": {} });
 const emptySelection = (mode: Mode = "yearlong"): Selection => ({ mode, primary: "", secondary: "", primaryGrade: "", secondaryGrade: "" });
+
+function loadSavedPlan(): SavedPlan {
+  const emptyPlan: SavedPlan = {
+    selections: emptySelections(),
+    priorCourses: [],
+    diplomaType: "advanced",
+    eligibilityChecks: {},
+  };
+
+  if (typeof window === "undefined") return emptyPlan;
+
+  try {
+    const saved = window.localStorage.getItem("fcps-course-plan-v2") ?? window.localStorage.getItem("rcms-course-plan-v1");
+    if (!saved) return emptyPlan;
+
+    const data = JSON.parse(saved) as Partial<SavedPlan>;
+    const priorCourses = data.priorCourses ?? [];
+    const selections = { ...emptySelections(), ...(data.selections ?? {}) };
+    return {
+      selections: sanitizeSelections(selections, priorCourses),
+      priorCourses,
+      diplomaType: data.diplomaType === "standard" ? "standard" : "advanced",
+      eligibilityChecks: data.eligibilityChecks ?? {},
+    };
+  } catch {
+    window.localStorage.removeItem("fcps-course-plan-v2");
+    return emptyPlan;
+  }
+}
 
 function selectedCourseIds(grade: Grade, selections: Selections) {
   return new Set(Object.values(selections[grade]).flatMap((value) => [value.primary, value.secondary]).filter(Boolean));
@@ -1157,34 +1193,13 @@ function PlanOverview({ selections, onEditGrade }: { selections: Selections; onE
 }
 
 export default function App() {
+  const [savedPlan] = useState(loadSavedPlan);
   const [grade, setGrade] = useState<Grade>("7");
   const [isOverview, setIsOverview] = useState(false);
-  const [selections, setSelections] = useState<Selections>(emptySelections);
-  const [priorCourses, setPriorCourses] = useState<string[]>([]);
-  const [diplomaType, setDiplomaType] = useState<DiplomaType>("advanced");
-  const [eligibilityChecks, setEligibilityChecks] = useState<Record<string, boolean>>({});
-
-  useEffect(() => {
-    try {
-      const saved = window.localStorage.getItem("fcps-course-plan-v2") ?? window.localStorage.getItem("rcms-course-plan-v1");
-      if (saved) {
-        const data = JSON.parse(saved) as {
-          selections?: Selections;
-          priorCourses?: string[];
-          diplomaType?: DiplomaType;
-          eligibilityChecks?: Record<string, boolean>;
-        };
-        const loadedPriorCourses = data.priorCourses ?? [];
-        const loadedSelections = { ...emptySelections(), ...(data.selections ?? {}) };
-        setSelections(sanitizeSelections(loadedSelections, loadedPriorCourses));
-        setPriorCourses(loadedPriorCourses);
-        setDiplomaType(data.diplomaType === "standard" ? "standard" : "advanced");
-        setEligibilityChecks(data.eligibilityChecks ?? {});
-      }
-    } catch {
-      window.localStorage.removeItem("fcps-course-plan-v2");
-    }
-  }, []);
+  const [selections, setSelections] = useState<Selections>(savedPlan.selections);
+  const [priorCourses, setPriorCourses] = useState<string[]>(savedPlan.priorCourses);
+  const [diplomaType, setDiplomaType] = useState<DiplomaType>(savedPlan.diplomaType);
+  const [eligibilityChecks, setEligibilityChecks] = useState<Record<string, boolean>>(savedPlan.eligibilityChecks);
 
   useEffect(() => {
     window.localStorage.setItem("fcps-course-plan-v2", JSON.stringify({ selections, priorCourses, diplomaType, eligibilityChecks }));
