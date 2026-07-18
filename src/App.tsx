@@ -71,6 +71,8 @@ type SavedPlan = {
   eligibilityChecks: Record<string, boolean>;
 };
 
+type PlannerSnapshot = Omit<SavedPlan, "studentName">;
+
 type CourseFamily = {
   id: string;
   label: string;
@@ -1304,6 +1306,7 @@ export default function App() {
   const [priorCourses, setPriorCourses] = useState<string[]>(savedPlan.priorCourses);
   const [diplomaType, setDiplomaType] = useState<DiplomaType>(savedPlan.diplomaType);
   const [eligibilityChecks, setEligibilityChecks] = useState<Record<string, boolean>>(savedPlan.eligibilityChecks);
+  const [undoStack, setUndoStack] = useState<PlannerSnapshot[]>([]);
 
   useEffect(() => {
     window.localStorage.setItem("fcps-course-plan-v2", JSON.stringify({ studentName, selections, priorCourses, diplomaType, eligibilityChecks }));
@@ -1321,7 +1324,29 @@ export default function App() {
   const requiredCreditTotal = diplomaType === "advanced" ? 26 : 22;
   const warnings = planWarnings(diplomaType, selections, eligibilityChecks);
 
+  function rememberCurrentPlan() {
+    const snapshot: PlannerSnapshot = {
+      selections: structuredClone(selections),
+      priorCourses: [...priorCourses],
+      diplomaType,
+      eligibilityChecks: { ...eligibilityChecks },
+    };
+    setUndoStack((current) => [...current.slice(-49), snapshot]);
+  }
+
+  function undoLastChange() {
+    const previous = undoStack[undoStack.length - 1];
+    if (!previous) return;
+
+    setSelections(structuredClone(previous.selections));
+    setPriorCourses([...previous.priorCourses]);
+    setDiplomaType(previous.diplomaType);
+    setEligibilityChecks({ ...previous.eligibilityChecks });
+    setUndoStack(undoStack.slice(0, -1));
+  }
+
   function updateSelection(slotId: string, patch: Partial<Selection>) {
+    rememberCurrentPlan();
     setSelections((current) => {
       const existing = current[grade]?.[slotId] ?? emptySelection();
       const updated = {
@@ -1336,6 +1361,7 @@ export default function App() {
     const formatModes = electiveFormats.find((item) => item.id === format)?.modes;
     if (!formatModes) return;
 
+    rememberCurrentPlan();
     setSelections((current) => {
       const nextGrade = { ...current[grade] };
       electiveSlots.forEach((slot, index) => {
@@ -1349,12 +1375,19 @@ export default function App() {
 
   function togglePriorCourse(id: string) {
     const updated = priorCourses.includes(id) ? priorCourses.filter((item) => item !== id) : [...priorCourses, id];
+    rememberCurrentPlan();
     setPriorCourses(updated);
     setSelections((current) => sanitizeSelections(current, updated));
   }
 
   function toggleEligibility(checkId: string) {
+    rememberCurrentPlan();
     setEligibilityChecks((current) => ({ ...current, [checkId]: !current[checkId] }));
+  }
+
+  function changeDiplomaType(nextDiplomaType: DiplomaType) {
+    rememberCurrentPlan();
+    setDiplomaType(nextDiplomaType);
   }
 
   function savePlanAsJson() {
@@ -1401,6 +1434,7 @@ export default function App() {
               onChange={(event) => setStudentName(event.target.value)}
             />
           </label>
+          <button type="button" className="undo-button" disabled={!undoStack.length} onClick={undoLastChange}>Undo</button>
           <button type="button" className="json-save-button" disabled={!planFileStem(studentName)} onClick={savePlanAsJson}>Save plan as JSON</button>
           <button type="button" className="print-button" onClick={savePlanAsPdf} title="Open the browser print dialog and choose Save as PDF">Save plan as PDF</button>
         </div>
@@ -1461,7 +1495,7 @@ export default function App() {
             </div>
             <label className="diploma-field">
               <span>Diploma</span>
-              <select value={diplomaType} onChange={(event) => setDiplomaType(event.target.value as DiplomaType)}>
+              <select value={diplomaType} onChange={(event) => changeDiplomaType(event.target.value as DiplomaType)}>
                 <option value="advanced">Advanced Studies</option>
                 <option value="standard">Standard</option>
               </select>

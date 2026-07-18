@@ -18,6 +18,9 @@ main { width: min(1380px, calc(100% - 32px)); margin: 0 auto; padding: 36px 0 28
 .plan-name-field { width: min(240px, 100%); }
 .plan-name-field span { display: block; margin-bottom: 7px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
 .plan-name-field input { width: 100%; min-height: 40px; padding: 8px 11px; border: 1px solid #b8c0cc; border-radius: 6px; background: white; color: var(--foreground); }
+.undo-button { min-height: 40px; padding: 0 14px; border: 1px solid var(--primary); border-radius: 6px; background: white; color: var(--primary); cursor: pointer; font-weight: 700; }
+.undo-button:hover:not(:disabled) { background: var(--primary-soft); }
+.undo-button:disabled { border-color: #c7cdd6; background: #f1f3f6; color: #7c8594; cursor: not-allowed; }
 .json-save-button { min-height: 40px; padding: 0 14px; border: 1px solid var(--primary); border-radius: 6px; background: var(--primary); color: white; cursor: pointer; font-weight: 700; }
 .json-save-button:hover { background: #194f92; }
 .json-save-button:disabled { border-color: #aeb5c0; background: #e2e5ea; color: #6f7886; cursor: not-allowed; }
