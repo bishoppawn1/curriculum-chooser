@@ -1,4 +1,4 @@
-import { render, screen, waitFor, within } from "@testing-library/react";
+import { act, render, screen, waitFor, within } from "@testing-library/react";
 import userEvent from "@testing-library/user-event";
 import { describe, expect, it, vi } from "vitest";
 import App from "./App";
@@ -139,6 +139,26 @@ describe("course versions, grades, and GPA display", () => {
 });
 
 describe("device-local persistence, reset, and undo", () => {
+  it("supports several consecutive Undo presses, including rapid presses", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const englishColumn = screen.getByRole("heading", { name: "English" }).closest(".course-column");
+    const english = within(englishColumn as HTMLElement);
+    await user.selectOptions(english.getByLabelText("Choose English for grade 7"), "english-7");
+    await user.selectOptions(english.getByLabelText("Version"), "english7h");
+    await user.selectOptions(english.getByLabelText("Grade"), "A");
+
+    const undo = screen.getByRole("button", { name: "Undo" });
+    act(() => {
+      undo.click();
+      undo.click();
+      undo.click();
+    });
+
+    expect(english.getByLabelText("Choose English for grade 7")).toHaveValue("");
+    expect(undo).toBeDisabled();
+  });
+
   it("restores a saved plan and writes edits back to localStorage", async () => {
     const selections = emptySelections();
     selections["7"] = {

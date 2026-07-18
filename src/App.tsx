@@ -2022,6 +2022,7 @@ export default function App() {
   const [diplomaType, setDiplomaType] = useState<DiplomaType>(savedPlan.diplomaType);
   const [eligibilityChecks, setEligibilityChecks] = useState<Record<string, boolean>>(savedPlan.eligibilityChecks);
   const [undoStack, setUndoStack] = useState<PlannerSnapshot[]>([]);
+  const undoStackRef = useRef<PlannerSnapshot[]>([]);
   const [loadMessage, setLoadMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [autofillMessage, setAutofillMessage] = useState("");
 
@@ -2050,11 +2051,14 @@ export default function App() {
       diplomaType,
       eligibilityChecks: { ...eligibilityChecks },
     };
-    setUndoStack((current) => [...current.slice(-49), snapshot]);
+    const nextStack = [...undoStackRef.current.slice(-49), snapshot];
+    undoStackRef.current = nextStack;
+    setUndoStack(nextStack);
   }
 
   function undoLastChange() {
-    const previous = undoStack[undoStack.length - 1];
+    const currentStack = undoStackRef.current;
+    const previous = currentStack[currentStack.length - 1];
     if (!previous) return;
 
     setSelections(structuredClone(previous.selections));
@@ -2063,7 +2067,9 @@ export default function App() {
     setPriorCourseGrades({ ...previous.priorCourseGrades });
     setDiplomaType(previous.diplomaType);
     setEligibilityChecks({ ...previous.eligibilityChecks });
-    setUndoStack(undoStack.slice(0, -1));
+    const nextStack = currentStack.slice(0, -1);
+    undoStackRef.current = nextStack;
+    setUndoStack(nextStack);
   }
 
   function updateSelection(slotId: string, patch: Partial<Selection>) {
