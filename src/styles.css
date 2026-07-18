@@ -29,6 +29,17 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 46px); line-height: 1.08; letter-spa
 .progress-track { height: 4px; background: #e9edf2; }
 .progress-track span { display: block; height: 100%; background: var(--success); transition: width 180ms ease; }
 .grade-note { margin: 0; padding: 15px 24px; border-bottom: 1px solid var(--border); background: var(--primary-soft); color: #294361; font-size: 14px; line-height: 1.5; }
+.elective-format { margin: 18px 24px; padding: 16px; border: 1px solid var(--border); border-radius: 6px; }
+.elective-format legend { padding: 0 6px; font-weight: 700; }
+.elective-format > p { margin: 0 0 12px; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.format-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
+.format-options label { display: flex; min-width: 0; align-items: flex-start; gap: 9px; padding: 12px; border: 1px solid var(--border); border-radius: 6px; cursor: pointer; }
+.format-options label:hover { background: #f4f6f9; }
+.format-options label.selected { border-color: var(--primary); background: var(--primary-soft); }
+.format-options input { flex: none; width: 16px; height: 16px; margin: 2px 0 0; }
+.format-options span, .format-options small { display: block; }
+.format-options strong { font-size: 14px; line-height: 1.35; }
+.format-options small { margin-top: 3px; color: var(--muted); font-size: 12px; line-height: 1.35; }
 .prior-courses { margin: 18px 24px; padding: 16px; border: 1px solid var(--border); border-radius: 6px; }
 .prior-courses legend { padding: 0 6px; font-weight: 700; }
 .prior-courses p { margin: 0 0 12px; color: var(--muted); font-size: 13px; }
@@ -48,7 +59,8 @@ tbody th { font-size: 15px; }
 tbody th span { display: block; margin-top: 4px; color: var(--muted); font-size: 12px; font-weight: 400; }
 select { width: 100%; min-height: 43px; padding: 8px 36px 8px 11px; border: 1px solid #b8c0cc; border-radius: 5px; background: white; color: var(--foreground); }
 select:focus-visible, button:focus-visible, input:focus-visible { outline: 3px solid rgba(31, 95, 174, .24); outline-offset: 2px; }
-.elective-fields { display: grid; grid-template-columns: 1.05fr 1fr 1fr; gap: 10px; }
+.elective-fields { display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 10px; }
+.elective-fields label:only-child { grid-column: 1 / -1; }
 .locked-note { margin: 7px 0 0; color: var(--muted); font-size: 12px; }
 footer { display: flex; justify-content: space-between; gap: 24px; padding: 18px 2px 0; color: var(--muted); font-size: 12px; line-height: 1.5; }
 footer p { max-width: 720px; margin: 0; }
@@ -61,6 +73,7 @@ footer a { flex: none; color: var(--primary); font-weight: 700; }
   .grade-tabs button { flex: 1; padding-inline: 10px; }
   .progress-text { align-items: flex-end; justify-content: flex-end; }
   .check-grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  .format-options { grid-template-columns: 1fr; }
   thead { display: none; }
   table, tbody, tr, th, td { display: block; width: 100%; }
   tbody tr { padding: 18px; border-bottom: 1px solid var(--border); }
