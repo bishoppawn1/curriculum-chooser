@@ -63,6 +63,7 @@ type Selection = {
 type Selections = Record<Grade, Record<string, Selection>>;
 
 type SavedPlan = {
+  studentName: string;
   selections: Selections;
   priorCourses: string[];
   diplomaType: DiplomaType;
@@ -584,6 +585,7 @@ const emptySelection = (mode: Mode = "yearlong"): Selection => ({ mode, primary:
 
 function loadSavedPlan(): SavedPlan {
   const emptyPlan: SavedPlan = {
+    studentName: "",
     selections: emptySelections(),
     priorCourses: [],
     diplomaType: "advanced",
@@ -600,6 +602,7 @@ function loadSavedPlan(): SavedPlan {
     const priorCourses = data.priorCourses ?? [];
     const selections = { ...emptySelections(), ...(data.selections ?? {}) };
     return {
+      studentName: data.studentName ?? "",
       selections: sanitizeSelections(selections, priorCourses),
       priorCourses,
       diplomaType: data.diplomaType === "standard" ? "standard" : "advanced",
@@ -609,6 +612,20 @@ function loadSavedPlan(): SavedPlan {
     window.localStorage.removeItem("fcps-course-plan-v2");
     return emptyPlan;
   }
+}
+
+function planFileStem(name: string) {
+  return name
+    .trim()
+    .normalize("NFKD")
+    .replace(/[\u0300-\u036f]/g, "")
+    .replace(/[^a-zA-Z0-9_-]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
+export function planFileName(name: string) {
+  const stem = planFileStem(name);
+  return `${stem || "course-plan"}-course-plan.json`;
 }
 
 function selectedCourseIds(grade: Grade, selections: Selections) {
@@ -1194,6 +1211,7 @@ function PlanOverview({ selections, onEditGrade }: { selections: Selections; onE
 
 export default function App() {
   const [savedPlan] = useState(loadSavedPlan);
+  const [studentName, setStudentName] = useState(savedPlan.studentName);
   const [grade, setGrade] = useState<Grade>("7");
   const [isOverview, setIsOverview] = useState(false);
   const [selections, setSelections] = useState<Selections>(savedPlan.selections);
@@ -1202,8 +1220,8 @@ export default function App() {
   const [eligibilityChecks, setEligibilityChecks] = useState<Record<string, boolean>>(savedPlan.eligibilityChecks);
 
   useEffect(() => {
-    window.localStorage.setItem("fcps-course-plan-v2", JSON.stringify({ selections, priorCourses, diplomaType, eligibilityChecks }));
-  }, [selections, priorCourses, diplomaType, eligibilityChecks]);
+    window.localStorage.setItem("fcps-course-plan-v2", JSON.stringify({ studentName, selections, priorCourses, diplomaType, eligibilityChecks }));
+  }, [studentName, selections, priorCourses, diplomaType, eligibilityChecks]);
 
   const plan = plans[grade];
   const gradeSelections = selections[grade] ?? {};
@@ -1253,9 +1271,44 @@ export default function App() {
     setEligibilityChecks((current) => ({ ...current, [checkId]: !current[checkId] }));
   }
 
+  function savePlanAsJson() {
+    const fileName = planFileName(studentName);
+    const contents = JSON.stringify({
+      formatVersion: 1,
+      studentName: studentName.trim(),
+      exportedAt: new Date().toISOString(),
+      activeView: isOverview ? "overview" : "grade-" + grade,
+      selections,
+      priorCourses,
+      diplomaType,
+      eligibilityChecks,
+    }, null, 2);
+    const url = window.URL.createObjectURL(new Blob([contents], { type: "application/json" }));
+    const link = document.createElement("a");
+    link.href = url;
+    link.download = fileName;
+    document.body.appendChild(link);
+    link.click();
+    link.remove();
+    window.setTimeout(() => window.URL.revokeObjectURL(url), 0);
+  }
+
   return (
     <main>
       <header className="page-header">
+        <div className="plan-file-controls">
+          <label className="plan-name-field">
+            <span>Name for saved file</span>
+            <input
+              type="text"
+              value={studentName}
+              autoComplete="name"
+              placeholder="e.g., eric"
+              onChange={(event) => setStudentName(event.target.value)}
+            />
+          </label>
+          <button type="button" className="json-save-button" disabled={!planFileStem(studentName)} onClick={savePlanAsJson}>Save plan as JSON</button>
+        </div>
         <p className="eyebrow">Rachel Carson Middle School → Skyview High School</p>
         <h1>Course Planner</h1>
         <p className="intro">Plan an FCPS course path from grade 7 through grade 12.</p>
