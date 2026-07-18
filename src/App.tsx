@@ -656,6 +656,11 @@ export function planFileName(name: string) {
   return `${stem || "course-plan"}-course-plan.json`;
 }
 
+export function pdfDocumentTitle(name: string) {
+  const stem = planFileStem(name);
+  return stem ? `${stem}-fcps-course-plan` : "fcps-course-plan";
+}
+
 function selectedCourseIds(grade: Grade, selections: Selections) {
   return new Set(Object.values(selections[grade]).flatMap((value) => [value.primary, value.secondary]).filter(Boolean));
 }
@@ -1238,6 +1243,58 @@ function PlanOverview({ selections, onEditGrade }: { selections: Selections; onE
   );
 }
 
+function PrintPlan({ studentName, selections, diplomaType }: { studentName: string; selections: Selections; diplomaType: DiplomaType }) {
+  const creditSummary = plannedCreditTotals(selections);
+  const requirements = graduationRequirements(diplomaType, selections);
+
+  return (
+    <section className="print-plan" aria-label="Printable course plan">
+      <header>
+        <h1>{studentName.trim() ? `${studentName.trim()} — FCPS Course Plan` : "FCPS Course Plan"}</h1>
+        <p>Rachel Carson Middle School → Skyview High School</p>
+        <p><strong>{diplomaType === "advanced" ? "Advanced Studies" : "Standard"} Diploma:</strong> {creditSummary.total} planned high-school credits</p>
+      </header>
+
+      {gradeOrder.map((printGrade) => (
+        <section className="print-grade" key={printGrade}>
+          <h2>Grade {printGrade} — {plans[printGrade].school === "middle" ? "Rachel Carson Middle School" : "Skyview High School"}</h2>
+          <table>
+            <thead><tr><th scope="col">Subject</th><th scope="col">Term</th><th scope="col">Course</th><th scope="col">Grade</th></tr></thead>
+            <tbody>
+              {plans[printGrade].slots.flatMap((slot) => {
+                const value = selections[printGrade]?.[slot.id] ?? emptySelection();
+                const row = (term: string, courseId: string, mark: GradeMark | "") => {
+                  const item = findCourse(printGrade, courseId);
+                  return {
+                    key: `${slot.id}-${term}`,
+                    subject: slot.label,
+                    term,
+                    course: item ? `${item.label}${item.highSchoolCredit ? " • HS credit" : ""}` : "Not selected",
+                    mark: mark || "—",
+                  };
+                };
+                if (slot.kind === "core" || value.mode === "yearlong") return [row("Full year", value.primary, value.primaryGrade)];
+                return [row("Fall", value.primary, value.primaryGrade), row("Spring", value.secondary, value.secondaryGrade)];
+              }).map((row) => (
+                <tr key={row.key}><th scope="row">{row.subject}</th><td>{row.term}</td><td>{row.course}</td><td>{row.mark}</td></tr>
+              ))}
+            </tbody>
+          </table>
+        </section>
+      ))}
+
+      <section className="print-requirements">
+        <h2>Graduation credit check</h2>
+        <table>
+          <thead><tr><th scope="col">Requirement</th><th scope="col">Planned</th><th scope="col">Needed</th></tr></thead>
+          <tbody>{requirements.map((row) => <tr key={row.id}><th scope="row">{row.label}</th><td>{row.planned}</td><td>{row.required}</td></tr>)}</tbody>
+        </table>
+        <p>Planning aid only. Final courses, credits, eligibility, and graduation status require FCPS and counselor confirmation.</p>
+      </section>
+    </section>
+  );
+}
+
 export default function App() {
   const [savedPlan] = useState(loadSavedPlan);
   const [studentName, setStudentName] = useState(savedPlan.studentName);
@@ -1322,6 +1379,14 @@ export default function App() {
     window.setTimeout(() => window.URL.revokeObjectURL(url), 0);
   }
 
+  function savePlanAsPdf() {
+    const previousTitle = document.title;
+    const restoreTitle = () => { document.title = previousTitle; };
+    document.title = pdfDocumentTitle(studentName);
+    window.addEventListener("afterprint", restoreTitle, { once: true });
+    window.print();
+  }
+
   return (
     <main>
       <header className="page-header">
@@ -1337,6 +1402,7 @@ export default function App() {
             />
           </label>
           <button type="button" className="json-save-button" disabled={!planFileStem(studentName)} onClick={savePlanAsJson}>Save plan as JSON</button>
+          <button type="button" className="print-button" onClick={savePlanAsPdf} title="Open the browser print dialog and choose Save as PDF">Save plan as PDF</button>
         </div>
         <p className="eyebrow">Rachel Carson Middle School → Skyview High School</p>
         <h1>Course Planner</h1>
@@ -1524,6 +1590,8 @@ export default function App() {
         </section>
         </>}
       </section>
+
+      <PrintPlan studentName={studentName} selections={selections} diplomaType={diplomaType} />
 
       <footer>
         <p>Planning aid only. Final courses depend on school offerings, enrollment, prerequisites, graduation requirements, and counselor review.</p>
