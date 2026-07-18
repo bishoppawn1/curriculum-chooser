@@ -15,6 +15,7 @@ Skyview opens in 2026–27 with grades 9 and 10. The grade 11 and 12 charts are 
 
 - Show Grade 7 and Grade 8 under a visible **Middle School** heading.
 - Show Grade 9, Grade 10, Grade 11, and Grade 12 under a visible **High School** heading.
+- Show an **Overview** tab after Grade 12 with the complete grade 7–12 plan, entered grades, and per-grade GPA estimates in one place.
 - Use a short, subject-first grid with each course category directly above its selector.
 - Select the base course first. When it has multiple versions, show a second **Version** dropdown immediately below it for Standard, Honors, AAP Center, AP, or another published version.
 - Do not list Standard and Honors as unrelated courses in the first dropdown. For example, list “Algebra 2” once, then offer Standard and Honors in its Version dropdown.
@@ -117,7 +118,7 @@ Offerings can change because of staffing, enrollment, scheduling conflicts, supp
 ## 8. Acceptance criteria
 
 1. No grade 6 schedule or grade 6 tab is displayed.
-2. Grades 7 and 8 appear under Middle School; grades 9 through 12 appear under High School.
+2. Grades 7 and 8 appear under Middle School; grades 9 through 12 appear under High School, followed by an Overview tab that summarizes all six grades.
 3. Every grade uses the compact subject-first editable chart.
 4. Rachel Carson's normal choices appear first, with later FCPS levels available in every subject for exceptional placement.
 5. Skyview's opening and future grade-level status is accurately labeled.

@@ -37,6 +37,8 @@ npm run preview
 
 Run `npm run build` after implementation changes. The build must pass TypeScript checking and produce a static `dist/` directory.
 
+After every requested change, commit the completed work and push it to the configured GitHub remote. Do not include unrelated user files or changes in the commit.
+
 ## Product rules
 
 1. Keep the interface a short, subject-first editable chart. Put each subject name above its course selector. Do not reintroduce slot numbers, a slot column, a completion bar, decorative imagery, dashboards, or unrelated features.

@@ -1033,8 +1033,79 @@ function CoursePicker({
   );
 }
 
+function PlanOverview({ selections, onEditGrade }: { selections: Selections; onEditGrade: (grade: Grade) => void }) {
+  return (
+    <section className="overview" aria-labelledby="planner-title">
+      <div className="overview-heading">
+        <div>
+          <p className="section-label">All grades</p>
+          <h2 id="planner-title">Grade 7–12 overview</h2>
+        </div>
+        <p>Review the full course path in one place. Use Edit grade to make changes.</p>
+      </div>
+
+      <div className="overview-grades">
+        {gradeOrder.map((overviewGrade) => {
+          const overviewPlan = plans[overviewGrade];
+          const overviewSelections = selections[overviewGrade] ?? {};
+          const unweighted = calculateGpa(overviewGrade, overviewSelections, "unweighted");
+          const weighted = calculateGpa(overviewGrade, overviewSelections, "weighted");
+
+          return (
+            <section className="overview-grade" key={overviewGrade} aria-labelledby={`overview-grade-${overviewGrade}`}>
+              <div className="overview-grade-heading">
+                <div>
+                  <h2 id={`overview-grade-${overviewGrade}`}>Grade {overviewGrade}</h2>
+                  <p>
+                    {overviewPlan.school === "middle" ? "Rachel Carson Middle School" : "Skyview High School"}
+                    {overviewGrade === "11" || overviewGrade === "12" ? " · Future planning" : ""}
+                  </p>
+                </div>
+                <div className="overview-grade-actions">
+                  <p aria-label={`Grade ${overviewGrade} estimated GPA`}>
+                    <span>GPA</span>
+                    <strong>UW {unweighted.value === null ? "—" : unweighted.value.toFixed(2)} · W {weighted.value === null ? "—" : weighted.value.toFixed(2)}</strong>
+                  </p>
+                  <button type="button" onClick={() => onEditGrade(overviewGrade)}>Edit grade {overviewGrade}</button>
+                </div>
+              </div>
+
+              <div className="overview-course-grid">
+                {overviewPlan.slots.map((slot) => {
+                  const selection = overviewSelections[slot.id] ?? emptySelection();
+                  const entries = slot.kind === "core" || selection.mode === "yearlong"
+                    ? [{ term: "", courseId: selection.primary, mark: selection.primaryGrade }]
+                    : [
+                        { term: "Fall", courseId: selection.primary, mark: selection.primaryGrade },
+                        { term: "Spring", courseId: selection.secondary, mark: selection.secondaryGrade },
+                      ];
+                  const selectedEntries = entries.filter((entry) => entry.courseId);
+
+                  return (
+                    <div className="overview-course" key={slot.id}>
+                      <h3>{slot.label}</h3>
+                      {selectedEntries.length ? selectedEntries.map((entry) => (
+                        <p key={`${entry.term}-${entry.courseId}`}>
+                          {entry.term && <span>{entry.term}: </span>}
+                          {findCourse(overviewGrade, entry.courseId)?.label ?? entry.courseId}
+                          {entry.mark && <strong>{entry.mark}</strong>}
+                        </p>
+                      )) : <p className="overview-empty">Not selected</p>}
+                    </div>
+                  );
+                })}
+              </div>
+            </section>
+          );
+        })}
+      </div>
+    </section>
+  );
+}
+
 export default function App() {
   const [grade, setGrade] = useState<Grade>("7");
+  const [isOverview, setIsOverview] = useState(false);
   const [selections, setSelections] = useState<Selections>(emptySelections);
   const [priorCourses, setPriorCourses] = useState<string[]>([]);
   const [diplomaType, setDiplomaType] = useState<DiplomaType>("advanced");
@@ -1127,21 +1198,25 @@ export default function App() {
               <span className="toolbar-label">Middle School</span>
               <div className="grade-tabs" aria-label="Choose a middle school grade">
                 {(["7", "8"] as Grade[]).map((item) => (
-                  <button key={item} type="button" className={grade === item ? "active" : ""} aria-pressed={grade === item} onClick={() => setGrade(item)}>Grade {item}</button>
+                  <button key={item} type="button" className={!isOverview && grade === item ? "active" : ""} aria-pressed={!isOverview && grade === item} onClick={() => { setGrade(item); setIsOverview(false); }}>Grade {item}</button>
                 ))}
               </div>
             </div>
             <div className="grade-group">
               <span className="toolbar-label">High School</span>
-              <div className="grade-tabs" aria-label="Choose a high school grade">
+              <div className="grade-tabs" aria-label="Choose a high school grade or view the full plan">
                 {(["9", "10", "11", "12"] as Grade[]).map((item) => (
-                  <button key={item} type="button" className={grade === item ? "active" : ""} aria-pressed={grade === item} onClick={() => setGrade(item)}>Grade {item}</button>
+                  <button key={item} type="button" className={!isOverview && grade === item ? "active" : ""} aria-pressed={!isOverview && grade === item} onClick={() => { setGrade(item); setIsOverview(false); }}>Grade {item}</button>
                 ))}
+                <button type="button" className={isOverview ? "active" : ""} aria-pressed={isOverview} onClick={() => setIsOverview(true)}>Overview</button>
               </div>
             </div>
           </div>
         </div>
 
+        {isOverview ? (
+          <PlanOverview selections={selections} onEditGrade={(item) => { setGrade(item); setIsOverview(false); }} />
+        ) : <>
         <p className="grade-note" id="planner-title">{plan.note}</p>
 
         <section className="gpa-panel" aria-labelledby="gpa-title">
@@ -1293,6 +1368,7 @@ export default function App() {
               );
             })}
         </section>
+        </>}
       </section>
 
       <footer>
