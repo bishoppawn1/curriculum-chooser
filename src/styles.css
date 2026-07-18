@@ -15,9 +15,12 @@ button, select, input { font: inherit; }
 main { width: min(1380px, calc(100% - 32px)); margin: 0 auto; padding: 36px 0 28px; }
 .page-header { margin-bottom: 20px; }
 .plan-file-controls { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 8px; margin-bottom: 20px; }
-.plan-name-field { width: min(240px, 100%); }
+.plan-name-field { position: relative; width: min(240px, 100%); }
 .plan-name-field span { display: block; margin-bottom: 7px; color: var(--muted); font-size: 12px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
 .plan-name-field input { width: 100%; min-height: 40px; padding: 8px 11px; border: 1px solid #b8c0cc; border-radius: 6px; background: white; color: var(--foreground); }
+.plan-name-field-error input { border-color: #a23d31; box-shadow: 0 0 0 2px #ffe4e0; }
+.plan-name-field .plan-name-error { position: absolute; z-index: 3; top: calc(100% + 8px); left: 0; width: max-content; max-width: min(320px, calc(100vw - 32px)); margin: 0; padding: 8px 10px; border-radius: 5px; background: #8b3026; color: white; font-size: 12px; font-weight: 700; letter-spacing: 0; line-height: 1.35; text-transform: none; }
+.plan-name-error::before { position: absolute; top: -6px; left: 18px; width: 12px; height: 12px; background: #8b3026; content: ""; transform: rotate(45deg); }
 .undo-button { min-height: 40px; padding: 0 14px; border: 1px solid var(--primary); border-radius: 6px; background: white; color: var(--primary); cursor: pointer; font-weight: 700; }
 .undo-button:hover:not(:disabled) { background: var(--primary-soft); }
 .undo-button:disabled { border-color: #c7cdd6; background: #f1f3f6; color: #7c8594; cursor: not-allowed; }

@@ -212,6 +212,28 @@ describe("plan files and supporting information", () => {
     expect(screen.getByRole("button", { name: "Save plan as JSON" })).toBeEnabled();
   });
 
+  it("blocks an unnamed PDF export and points the error to the name field", async () => {
+    const user = userEvent.setup();
+    const downloadClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    render(<App />);
+    const name = screen.getByLabelText("Name for saved file");
+    const savePdf = screen.getByRole("button", { name: "Save plan as PDF" });
+
+    await user.click(savePdf);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Enter your name before saving the plan as a PDF.");
+    expect(name).toHaveFocus();
+    expect(name).toHaveAttribute("aria-invalid", "true");
+    expect(name).toHaveAttribute("aria-describedby", "plan-name-error");
+    expect(window.URL.createObjectURL).not.toHaveBeenCalled();
+
+    await user.type(name, "Eric");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    await user.click(savePdf);
+    expect(window.URL.createObjectURL).toHaveBeenCalledOnce();
+    expect(downloadClick).toHaveBeenCalledOnce();
+  });
+
   it("loads an editable JSON plan and restores its active view", async () => {
     const user = userEvent.setup();
     render(<App />);

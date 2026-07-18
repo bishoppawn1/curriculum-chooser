@@ -2012,6 +2012,7 @@ function PrintPlan({
 export default function App() {
   const [savedPlan] = useState(loadSavedPlan);
   const loadInputRef = useRef<HTMLInputElement>(null);
+  const nameInputRef = useRef<HTMLInputElement>(null);
   const [studentName, setStudentName] = useState(savedPlan.studentName);
   const [grade, setGrade] = useState<Grade>("7");
   const [isOverview, setIsOverview] = useState(false);
@@ -2025,6 +2026,7 @@ export default function App() {
   const undoStackRef = useRef<PlannerSnapshot[]>([]);
   const [loadMessage, setLoadMessage] = useState<{ kind: "success" | "error"; text: string } | null>(null);
   const [autofillMessage, setAutofillMessage] = useState("");
+  const [nameError, setNameError] = useState("");
 
   useEffect(() => {
     window.localStorage.setItem("fcps-course-plan-v2", JSON.stringify({ studentName, selections, lockedSelections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks }));
@@ -2180,6 +2182,13 @@ export default function App() {
   }
 
   function savePlanAsPdf() {
+    if (!planFileStem(studentName)) {
+      setNameError("Enter your name before saving the plan as a PDF.");
+      nameInputRef.current?.focus();
+      return;
+    }
+
+    setNameError("");
     const savedAt = new Date();
     const planData = exportedPlan(studentName, selections, lockedSelections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks, grade, isOverview, savedAt);
     const url = window.URL.createObjectURL(createRecoverablePdf(planData));
@@ -2247,15 +2256,22 @@ export default function App() {
     <main>
       <header className="page-header">
         <div className="plan-file-controls">
-          <label className="plan-name-field">
+          <label className={`plan-name-field${nameError ? " plan-name-field-error" : ""}`}>
             <span>Name for saved file</span>
             <input
+              ref={nameInputRef}
               type="text"
               value={studentName}
               autoComplete="name"
               placeholder="e.g., eric"
-              onChange={(event) => setStudentName(event.target.value)}
+              aria-invalid={Boolean(nameError)}
+              aria-describedby={nameError ? "plan-name-error" : undefined}
+              onChange={(event) => {
+                setStudentName(event.target.value);
+                if (planFileStem(event.target.value)) setNameError("");
+              }}
             />
+            {nameError && <span className="plan-name-error" id="plan-name-error" role="alert">{nameError}</span>}
           </label>
           <button type="button" className="undo-button" disabled={!undoStack.length} onClick={undoLastChange}>Undo</button>
           <button type="button" className="json-save-button" disabled={!planFileStem(studentName)} onClick={savePlanAsJson}>Save plan as JSON</button>
