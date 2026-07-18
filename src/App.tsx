@@ -24,6 +24,7 @@ type Course = {
   eligibilityRequirements?: EligibilityRequirement[];
   prerequisite?: {
     anyOf: string[];
+    allOf?: string[][];
     label: string;
   };
 };
@@ -119,6 +120,7 @@ const course = (id: string, label: string, extra: Omit<Course, "id" | "label"> =
   return item;
 };
 const requires = (anyOf: string[], label: string) => ({ prerequisite: { anyOf, label } });
+const requiresAll = (allOf: string[][], label: string) => ({ prerequisite: { anyOf: allOf.flat(), allOf, label } });
 
 const deApplicationRequirement: EligibilityRequirement = {
   id: "de-application",
@@ -428,7 +430,11 @@ const plans: Record<Grade, Plan> = {
         course("geometryh", "Geometry HN", { highSchoolCredit: true, ...requires(["algebra1", "algebra1h"], "Algebra 1") }),
         course("algebra2h", "Algebra II HN", { highSchoolCredit: true, ...requires(["geometry", "geometryh"], "Geometry") }),
       ] },
-      { id: "science", label: "Science", kind: "core", courses: [course("science8", "Science 8"), course("science8h", "Science 8 HN"), course("science8aa", "Science 8 AA — AAP Center")] },
+      { id: "science", label: "Science", kind: "core", courses: [
+        course("science8", "Science 8", requires(["science7", "science7h", "science7aa"], "Science 7")),
+        course("science8h", "Science 8 HN", requires(["science7", "science7h", "science7aa"], "Science 7")),
+        course("science8aa", "Science 8 AA — AAP Center", requires(["science7", "science7h", "science7aa"], "Science 7")),
+      ] },
       { id: "social-studies", label: "Social Studies", kind: "core", courses: [course("civics", "Civics 8"), course("civicsh", "Civics 8 Honors"), course("civicsaa", "Civics 8 AA — AAP Center")] },
       { id: "health-pe", label: "Health & PE", kind: "core", courses: [course("hpe8", "Health & PE 8")] },
       { id: "elective-1", label: "Elective 1", kind: "elective", yearlong: grade8YearlongElectives, semester: grade8SemesterElectives },
@@ -448,7 +454,10 @@ const plans: Record<Grade, Plan> = {
         course("geometryh", "Geometry Honors", { highSchoolCredit: true, ...requires(["algebra1", "algebra1h"], "Algebra 1") }),
         course("algebra2h", "Algebra 2 Honors", { highSchoolCredit: true, ...requires(["geometry", "geometryh"], "Geometry") }),
       ] },
-      { id: "science", label: "Science", kind: "core", courses: [course("biology", "Biology", { highSchoolCredit: true }), course("biologyh", "Biology Honors", { highSchoolCredit: true })] },
+      { id: "science", label: "Science", kind: "core", courses: [
+        course("biology", "Biology", { highSchoolCredit: true, ...requires(["science8", "science8h", "science8aa"], "Science 8") }),
+        course("biologyh", "Biology Honors", { highSchoolCredit: true, ...requires(["science8", "science8h", "science8aa"], "Science 8") }),
+      ] },
       { id: "social-studies", label: "Social Studies", kind: "core", courses: [course("world-history1", "World History & Geography 1", { highSchoolCredit: true }), course("world-history1h", "World History & Geography 1 Honors", { highSchoolCredit: true }), dualEnrollmentCourse("world-history1-de", "World History & Geography 1 DE")] },
       { id: "health-pe", label: "Health & PE", kind: "core", courses: [course("hpe9", "Health & PE 9", { highSchoolCredit: true })] },
       electiveSlot("elective-1", "Elective 1"),
@@ -470,7 +479,11 @@ const plans: Record<Grade, Plan> = {
         course("precalculus-h", "Precalculus Honors", { highSchoolCredit: true, ...requires(["algebra2", "algebra2h"], "Algebra 2") }),
         dualEnrollmentCourse("precalculus-de", "Precalculus with Trigonometry DE", requires(["algebra2", "algebra2h"], "Algebra 2 and college eligibility")),
       ] },
-      { id: "science", label: "Science", kind: "core", courses: [course("chemistry", "Chemistry", { highSchoolCredit: true }), course("chemistryh", "Chemistry Honors", { highSchoolCredit: true }), course("geosystems", "Geosystems", { highSchoolCredit: true })] },
+      { id: "science", label: "Science", kind: "core", courses: [
+        course("chemistry", "Chemistry", { highSchoolCredit: true, ...requiresAll([["biology", "biologyh"], ["algebra1", "algebra1h"]], "Biology and Algebra 1") }),
+        course("chemistryh", "Chemistry Honors", { highSchoolCredit: true, ...requiresAll([["biology", "biologyh"], ["geometry", "geometryh"]], "Biology and Geometry; Algebra 2 must be taken concurrently") }),
+        course("geosystems", "Geosystems", { highSchoolCredit: true, ...requires(["biology", "biologyh"], "Biology") }),
+      ] },
       { id: "social-studies", label: "Social Studies", kind: "core", courses: [course("world-history2", "World History & Geography 2", { highSchoolCredit: true }), course("world-history2h", "World History & Geography 2 Honors", { highSchoolCredit: true }), course("ap-world", "AP World History", { highSchoolCredit: true, gpaWeight: 1 }), dualEnrollmentCourse("world-history2-de", "World History & Geography 2 DE")] },
       { id: "health-pe", label: "Health & PE", kind: "core", courses: [course("hpe10", "Health & PE 10", { highSchoolCredit: true })] },
       electiveSlot("elective-1", "Elective 1"),
@@ -494,7 +507,15 @@ const plans: Record<Grade, Plan> = {
         dualEnrollmentCourse("calculus1-de", "Calculus 1 DE", requires(["precalculus", "precalculus-h", "ap-precalculus", "precalculus-de"], "Precalculus and college eligibility")),
         course("ap-statistics", "AP Statistics", { highSchoolCredit: true, gpaWeight: 1 }),
       ] },
-      { id: "science", label: "Science", kind: "core", courses: [course("physics", "Physics", { highSchoolCredit: true }), course("physicsh", "Physics Honors", { highSchoolCredit: true }), dualEnrollmentCourse("physics1-de", "Physics 1 DE"), course("ap-biology", "AP Biology", { highSchoolCredit: true, gpaWeight: 1 }), dualEnrollmentCourse("biology2-de", "Biology 2 DE", requires(["biology", "biologyh", "ap-biology"], "Biology and college eligibility")), course("ap-chemistry", "AP Chemistry", { highSchoolCredit: true, gpaWeight: 1 }), dualEnrollmentCourse("chemistry2-de", "Chemistry 2 DE", requires(["chemistry", "chemistryh", "ap-chemistry"], "Chemistry and college eligibility"))] },
+      { id: "science", label: "Science", kind: "core", courses: [
+        course("physics", "Physics", { highSchoolCredit: true, ...requiresAll([["biology", "biologyh"], ["chemistry", "chemistryh"], ["geometry", "geometryh"]], "Biology, Chemistry, and Geometry") }),
+        course("physicsh", "Physics Honors", { highSchoolCredit: true, ...requiresAll([["biology", "biologyh"], ["chemistry", "chemistryh"], ["geometry", "geometryh"]], "Biology, Chemistry, and Geometry") }),
+        dualEnrollmentCourse("physics1-de", "Physics 1 DE", requiresAll([["biology", "biologyh"], ["chemistry", "chemistryh"], ["geometry", "geometryh"]], "Biology, Chemistry, Geometry, and college eligibility")),
+        course("ap-biology", "AP Biology", { highSchoolCredit: true, gpaWeight: 1, ...requiresAll([["biology", "biologyh"], ["chemistry", "chemistryh"]], "Biology and Chemistry") }),
+        dualEnrollmentCourse("biology2-de", "Biology 2 DE", requiresAll([["biology", "biologyh"], ["chemistry", "chemistryh"]], "Biology, Chemistry, and college eligibility")),
+        course("ap-chemistry", "AP Chemistry", { highSchoolCredit: true, gpaWeight: 1, ...requiresAll([["chemistry", "chemistryh"], ["algebra2", "algebra2h"]], "Chemistry and Algebra 2") }),
+        dualEnrollmentCourse("chemistry2-de", "Chemistry 2 DE", requiresAll([["chemistry", "chemistryh"], ["algebra2", "algebra2h"]], "Chemistry, Algebra 2, and college eligibility")),
+      ] },
       { id: "social-studies", label: "Social Studies", kind: "core", courses: [course("us-history", "Virginia & U.S. History", { highSchoolCredit: true }), course("us-historyh", "Virginia & U.S. History Honors", { highSchoolCredit: true }), course("ap-us-history", "AP U.S. History", { highSchoolCredit: true, gpaWeight: 1 }), dualEnrollmentCourse("us-history-de", "Virginia & U.S. History DE")] },
       { id: "epf", label: "Required / Elective", kind: "core", courses: [course("epf", "Economics & Personal Finance", { highSchoolCredit: true }), course("elective-placeholder11", "Use this period for an elective", { highSchoolCredit: true })] },
       electiveSlot("elective-1", "Elective 1"),
@@ -524,7 +545,14 @@ const plans: Record<Grade, Plan> = {
         dualEnrollmentCourse("multivariable-linear-algebra-de", "Multivariable Calculus / Linear Algebra DE", { ...requires(["calculus12-de", "ap-calculus-bc"], "Calculus 1 & 2 DE with a C or AP Calculus BC exam score of 3 or higher, plus college eligibility"), eligibilityRequirements: [advancedCalculusRequirement] }),
         dualEnrollmentCourse("differential-equations-de", "Differential Equations DE", requires(["multivariable-linear-algebra-de"], "Multivariable Calculus and college eligibility")),
       ] },
-      { id: "science", label: "Science", kind: "core", courses: [course("physics", "Physics", { highSchoolCredit: true }), course("ap-physics", "AP Physics", { highSchoolCredit: true, gpaWeight: 1 }), dualEnrollmentCourse("physics1-de", "Physics 1 DE"), course("environmental-science", "Environmental Science", { highSchoolCredit: true }), course("ap-environmental", "AP Environmental Science", { highSchoolCredit: true, gpaWeight: 1 }), dualEnrollmentCourse("environmental-science-de", "Environmental Science DE")] },
+      { id: "science", label: "Science", kind: "core", courses: [
+        course("physics", "Physics", { highSchoolCredit: true, ...requiresAll([["biology", "biologyh"], ["chemistry", "chemistryh"], ["geometry", "geometryh"]], "Biology, Chemistry, and Geometry") }),
+        course("ap-physics", "AP Physics", { highSchoolCredit: true, gpaWeight: 1, ...requiresAll([["biology", "biologyh"], ["chemistry", "chemistryh"], ["geometry", "geometryh"]], "Biology, Chemistry, and Geometry") }),
+        dualEnrollmentCourse("physics1-de", "Physics 1 DE", requiresAll([["biology", "biologyh"], ["chemistry", "chemistryh"], ["geometry", "geometryh"]], "Biology, Chemistry, Geometry, and college eligibility")),
+        course("environmental-science", "Environmental Science", { highSchoolCredit: true, ...requires(["science8", "science8h", "science8aa"], "Science 8") }),
+        course("ap-environmental", "AP Environmental Science", { highSchoolCredit: true, gpaWeight: 1, ...requiresAll([["biology", "biologyh"], ["chemistry", "chemistryh"]], "Biology and Chemistry") }),
+        dualEnrollmentCourse("environmental-science-de", "Environmental Science DE", requiresAll([["biology", "biologyh"], ["chemistry", "chemistryh"]], "Biology, Chemistry, and college eligibility")),
+      ] },
       { id: "social-studies", label: "Social Studies", kind: "core", courses: [course("government", "Virginia & U.S. Government", { highSchoolCredit: true }), course("governmenth", "Virginia & U.S. Government Honors", { highSchoolCredit: true }), course("ap-government", "AP Government", { highSchoolCredit: true, gpaWeight: 1 }), dualEnrollmentCourse("government-de", "Virginia & U.S. Government DE")] },
       { id: "epf", label: "Economics", kind: "core", courses: [course("epf", "Economics & Personal Finance", { highSchoolCredit: true })] },
       electiveSlot("elective-1", "Elective 1"),
@@ -650,10 +678,11 @@ function unavailableReasonFor(item: Course, grade: Grade) {
 function isAvailable(item: Course, grade: Grade, selections: Selections, priorCourses: string[], additionalCompleted: string[] = []) {
   if (item.unavailableReason) return false;
   if (item.allowedGrades && !item.allowedGrades.includes(grade)) return false;
-  if (!item.prerequisite) return true;
   const completed = prerequisitesFor(grade, selections, priorCourses);
   additionalCompleted.forEach((courseId) => completed.add(courseId));
-  return item.prerequisite.anyOf.some((required) => completed.has(required));
+  if (!item.prerequisite) return true;
+  const prerequisiteGroups = item.prerequisite.allOf ?? [item.prerequisite.anyOf];
+  return prerequisiteGroups.every((group) => group.some((required) => completed.has(required)));
 }
 
 function findCourse(grade: Grade, id: string) {
