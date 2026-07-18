@@ -1670,33 +1670,34 @@ export function graduationRequirements(diplomaType: DiplomaType, selections: Sel
   ];
 }
 
-function planWarnings(diplomaType: DiplomaType, selections: Selections, eligibilityChecks: Record<string, boolean>) {
-  const warnings: string[] = [];
+function planChecks(diplomaType: DiplomaType, selections: Selections, eligibilityChecks: Record<string, boolean>) {
+  const issues: string[] = [];
+  const confirmations: string[] = [];
   const requirements = graduationRequirements(diplomaType, selections);
   const missing = requirements.filter((row) => row.planned < row.required).map((row) => row.label);
-  if (missing.length) warnings.push(`The current six-year plan is short in: ${missing.join(", ")}.`);
+  if (missing.length) issues.push(`The current six-year plan is short in: ${missing.join(", ")}.`);
 
   const { entries } = plannedCreditTotals(selections);
   const duplicateNames = entries
     .filter((entry, index) => entries.findIndex((candidate) => candidate.courseId === entry.courseId) !== index)
     .map((entry) => entry.item.label);
   const duplicates = [...new Set(duplicateNames)];
-  if (duplicates.length) warnings.push(`Repeated course selection: ${duplicates.join(", ")}. Confirm that repeat credit is allowed.`);
+  if (duplicates.length) issues.push(`Repeated course selection: ${duplicates.join(", ")}. Confirm that repeat credit is allowed.`);
 
   const uncheckedEligibility = entries.filter((entry) => eligibilityForCourse(entry.item, entry.grade)
     .some((requirement) => !eligibilityChecks[eligibilityCheckId(entry.grade, entry.courseId, requirement.id)]));
   if (uncheckedEligibility.length) {
     const labels = [...new Set(uncheckedEligibility.map((entry) => entry.item.label))];
-    warnings.push(`Eligibility still needs verification for: ${labels.join(", ")}.`);
+    confirmations.push(`Confirm Dual Enrollment eligibility for: ${labels.join(", ")}.`);
   }
 
   const unconfirmed = entries.filter((entry) => ["unconfirmed", "future"].includes(availabilityDetails(entry.grade, entry.item).className));
-  if (unconfirmed.length) warnings.push(`${unconfirmed.length} selected ${unconfirmed.length === 1 ? "course has" : "courses have"} unconfirmed Skyview availability.`);
+  if (unconfirmed.length) issues.push(`${unconfirmed.length} selected ${unconfirmed.length === 1 ? "course has" : "courses have"} unconfirmed Skyview availability.`);
 
   if (diplomaType === "advanced" && entries.length && !entries.some((entry) => courseWeightDetails(entry.item).designation !== "STANDARD")) {
-    warnings.push("The Advanced Diploma plan does not yet include an Honors, AP, or DE course; FCPS requires an advanced course or another approved advanced-learning option.");
+    issues.push("The Advanced Diploma plan does not yet include an Honors, AP, or DE course; FCPS requires an advanced course or another approved advanced-learning option.");
   }
-  return warnings;
+  return { issues, confirmations };
 }
 
 function versionDetailsFor(item: Course): CourseVersionDetails {
@@ -2042,7 +2043,7 @@ export default function App() {
   const creditSummary = plannedCreditTotals(selections);
   const requirementRows = graduationRequirements(diplomaType, selections);
   const requiredCreditTotal = diplomaType === "advanced" ? 26 : 22;
-  const warnings = planWarnings(diplomaType, selections, eligibilityChecks);
+  const { issues: warnings, confirmations } = planChecks(diplomaType, selections, eligibilityChecks);
 
   function rememberCurrentPlan() {
     const snapshot: PlannerSnapshot = {
@@ -2390,6 +2391,13 @@ export default function App() {
         <details className="plan-warnings">
           <summary>Plan checks ({warnings.length})</summary>
           {warnings.length ? <ul>{warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul> : <p>No issues found in the choices entered so far.</p>}
+          {confirmations.length > 0 && (
+            <section className="plan-confirmations" aria-labelledby="plan-confirmations-title">
+              <h3 id="plan-confirmations-title">Confirm with counselor or college</h3>
+              <p>These are reminders to verify—not signs that the plan is wrong.</p>
+              <ul>{confirmations.map((confirmation) => <li key={confirmation}>{confirmation}</li>)}</ul>
+            </section>
+          )}
           <SourceLinks items={[...sourcesForGrade(grade), sources.courseCatalogs, sources.graduation, sources.dualEnrollmentAdmissions]} />
         </details>
 

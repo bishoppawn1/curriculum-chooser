@@ -138,6 +138,28 @@ describe("course versions, grades, and GPA display", () => {
   });
 });
 
+describe("plan checks and confirmation reminders", () => {
+  it("shows unchecked DE eligibility as a side reminder instead of a plan issue", async () => {
+    const selections = emptySelections();
+    selections["11"] = {
+      "elective-1": { mode: "yearlong", primary: "college-success-de", secondary: "", primaryGrade: "A", secondaryGrade: "" },
+    };
+    saveToBrowser(savedPlan({ selections }));
+    const user = userEvent.setup();
+    render(<App />);
+
+    await user.click(screen.getByText("Plan checks (2)"));
+    expect(screen.getByRole("heading", { name: "Confirm with counselor or college" })).toBeInTheDocument();
+    expect(screen.getByText("These are reminders to verify—not signs that the plan is wrong.")).toBeInTheDocument();
+    expect(screen.getByText(/Confirm Dual Enrollment eligibility for: College Success Skills DE/)).toBeInTheDocument();
+
+    await user.click(screen.getByRole("button", { name: "Grade 11" }));
+    await user.click(screen.getByRole("checkbox", { name: "Partner-college application completed" }));
+    await user.click(screen.getByRole("checkbox", { name: "College-readiness requirement met" }));
+    expect(screen.queryByRole("heading", { name: "Confirm with counselor or college" })).not.toBeInTheDocument();
+  });
+});
+
 describe("device-local persistence, reset, and undo", () => {
   it("supports several consecutive Undo presses, including rapid presses", async () => {
     const user = userEvent.setup();

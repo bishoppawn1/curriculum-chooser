@@ -130,6 +130,10 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 46px); line-height: 1.08; letter-spa
 .plan-warnings summary { cursor: pointer; font-size: 13px; font-weight: 700; }
 .plan-warnings ul { margin: 9px 0 0; padding-left: 19px; }
 .plan-warnings li, .plan-warnings p { margin: 5px 0 0; font-size: 12px; line-height: 1.4; }
+.plan-confirmations { margin-top: 12px; padding: 10px 11px; border: 1px solid var(--border); border-radius: 5px; background: #f7f9fc; color: var(--muted); }
+.plan-confirmations h3 { margin: 0; color: var(--foreground); font-size: 12px; }
+.plan-confirmations > p { margin-top: 3px; font-size: 11px; }
+.plan-confirmations ul { margin-top: 7px; }
 .elective-format { margin: 12px 18px; padding: 0; border: 0; }
 .elective-format legend { padding: 0 6px; font-weight: 700; }
 .format-options { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
