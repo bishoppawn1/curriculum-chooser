@@ -148,15 +148,18 @@ describe("plan checks and confirmation reminders", () => {
     const user = userEvent.setup();
     render(<App />);
 
-    await user.click(screen.getByText("Plan checks (2)"));
+    await user.click(screen.getByText("Plan checks (3)"));
     expect(screen.getByRole("heading", { name: "Confirm with counselor or college" })).toBeInTheDocument();
     expect(screen.getByText("These are reminders to verify—not signs that the plan is wrong.")).toBeInTheDocument();
     expect(screen.getByText(/Confirm Dual Enrollment eligibility for: College Success Skills DE/)).toBeInTheDocument();
+    expect(screen.getByText(/1 selected course has unconfirmed Skyview availability/).closest(".plan-confirmations")).not.toBeNull();
 
     await user.click(screen.getByRole("button", { name: "Grade 11" }));
     await user.click(screen.getByRole("checkbox", { name: "Partner-college application completed" }));
     await user.click(screen.getByRole("checkbox", { name: "College-readiness requirement met" }));
-    expect(screen.queryByRole("heading", { name: "Confirm with counselor or college" })).not.toBeInTheDocument();
+    expect(screen.queryByText(/Confirm Dual Enrollment eligibility/)).not.toBeInTheDocument();
+    expect(screen.getByRole("heading", { name: "Confirm with counselor or college" })).toBeInTheDocument();
+    expect(screen.getByText("Plan checks (2)")).toBeInTheDocument();
   });
 });
 

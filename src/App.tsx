@@ -1692,7 +1692,7 @@ function planChecks(diplomaType: DiplomaType, selections: Selections, eligibilit
   }
 
   const unconfirmed = entries.filter((entry) => ["unconfirmed", "future"].includes(availabilityDetails(entry.grade, entry.item).className));
-  if (unconfirmed.length) issues.push(`${unconfirmed.length} selected ${unconfirmed.length === 1 ? "course has" : "courses have"} unconfirmed Skyview availability.`);
+  if (unconfirmed.length) confirmations.push(`${unconfirmed.length} selected ${unconfirmed.length === 1 ? "course has" : "courses have"} unconfirmed Skyview availability. Confirm the planned offerings with a counselor.`);
 
   if (diplomaType === "advanced" && entries.length && !entries.some((entry) => courseWeightDetails(entry.item).designation !== "STANDARD")) {
     issues.push("The Advanced Diploma plan does not yet include an Honors, AP, or DE course; FCPS requires an advanced course or another approved advanced-learning option.");
@@ -2043,7 +2043,8 @@ export default function App() {
   const creditSummary = plannedCreditTotals(selections);
   const requirementRows = graduationRequirements(diplomaType, selections);
   const requiredCreditTotal = diplomaType === "advanced" ? 26 : 22;
-  const { issues: warnings, confirmations } = planChecks(diplomaType, selections, eligibilityChecks);
+  const { issues, confirmations } = planChecks(diplomaType, selections, eligibilityChecks);
+  const planCheckCount = issues.length + confirmations.length;
 
   function rememberCurrentPlan() {
     const snapshot: PlannerSnapshot = {
@@ -2389,8 +2390,8 @@ export default function App() {
         </section>
 
         <details className="plan-warnings">
-          <summary>Plan checks ({warnings.length})</summary>
-          {warnings.length ? <ul>{warnings.map((warning) => <li key={warning}>{warning}</li>)}</ul> : <p>No issues found in the choices entered so far.</p>}
+          <summary>Plan checks ({planCheckCount})</summary>
+          {issues.length ? <ul>{issues.map((issue) => <li key={issue}>{issue}</li>)}</ul> : <p>No issues found in the choices entered so far.</p>}
           {confirmations.length > 0 && (
             <section className="plan-confirmations" aria-labelledby="plan-confirmations-title">
               <h3 id="plan-confirmations-title">Confirm with counselor or college</h3>
