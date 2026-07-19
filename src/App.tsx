@@ -83,7 +83,7 @@ type ExportedPlan = SavedPlan & {
   formatVersion: 1;
   title: string;
   exportedAt: string;
-  activeView: "overview" | `grade-${Grade}`;
+  activeView: "before-grade-7" | "overview" | `grade-${Grade}`;
 };
 
 type PlannerSnapshot = Omit<SavedPlan, "studentName">;
@@ -858,6 +858,7 @@ function exportedPlan(
   eligibilityChecks: Record<string, boolean>,
   grade: Grade,
   isOverview: boolean,
+  isPriorCourses: boolean,
   savedAt: Date = new Date(),
 ): ExportedPlan {
   return {
@@ -865,7 +866,7 @@ function exportedPlan(
     title: exportDocumentTitle(studentName, savedAt),
     studentName: studentName.trim(),
     exportedAt: savedAt.toISOString(),
-    activeView: isOverview ? "overview" : `grade-${grade}`,
+    activeView: isPriorCourses ? "before-grade-7" : isOverview ? "overview" : `grade-${grade}`,
     selections,
     lockedSelections,
     priorCourses,
@@ -2023,6 +2024,7 @@ export default function App() {
   const [studentName, setStudentName] = useState(savedPlan.studentName);
   const [grade, setGrade] = useState<Grade>("7");
   const [isOverview, setIsOverview] = useState(false);
+  const [isPriorCourses, setIsPriorCourses] = useState(false);
   const [selections, setSelections] = useState<Selections>(savedPlan.selections);
   const [lockedSelections, setLockedSelections] = useState<Record<string, boolean>>(savedPlan.lockedSelections);
   const [priorCourses, setPriorCourses] = useState<string[]>(savedPlan.priorCourses);
@@ -2187,7 +2189,7 @@ export default function App() {
     setNameError("");
     const savedAt = new Date();
     const fileName = planFileName(studentName, savedAt);
-    const contents = JSON.stringify(exportedPlan(studentName, selections, lockedSelections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks, grade, isOverview, savedAt), null, 2);
+    const contents = JSON.stringify(exportedPlan(studentName, selections, lockedSelections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks, grade, isOverview, isPriorCourses, savedAt), null, 2);
     const url = window.URL.createObjectURL(new Blob([contents], { type: "application/json" }));
     const link = document.createElement("a");
     link.href = url;
@@ -2207,7 +2209,7 @@ export default function App() {
 
     setNameError("");
     const savedAt = new Date();
-    const planData = exportedPlan(studentName, selections, lockedSelections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks, grade, isOverview, savedAt);
+    const planData = exportedPlan(studentName, selections, lockedSelections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks, grade, isOverview, isPriorCourses, savedAt);
     const url = window.URL.createObjectURL(createRecoverablePdf(planData));
     const link = document.createElement("a");
     link.href = url;
@@ -2241,9 +2243,15 @@ export default function App() {
       setDiplomaType(imported.plan.diplomaType);
       setEligibilityChecks(imported.plan.eligibilityChecks);
       const gradeMatch = imported.activeView.match(/^grade-(7|8|9|10|11|12)$/);
-      if (imported.activeView === "overview") setIsOverview(true);
-      else {
+      if (imported.activeView === "before-grade-7") {
+        setIsPriorCourses(true);
+        setIsOverview(false);
+      } else if (imported.activeView === "overview") {
+        setIsPriorCourses(false);
+        setIsOverview(true);
+      } else {
         setGrade((gradeMatch?.[1] as Grade | undefined) ?? "7");
+        setIsPriorCourses(false);
         setIsOverview(false);
       }
       setLoadMessage({ kind: "success", text: `${file.name} loaded. You can now edit the plan.` });
@@ -2282,6 +2290,7 @@ export default function App() {
     setDiplomaType("advanced");
     setEligibilityChecks({});
     setGrade("7");
+    setIsPriorCourses(false);
     setIsOverview(false);
   }
 
@@ -2322,10 +2331,16 @@ export default function App() {
         <div className="toolbar">
           <div className="grade-groups">
             <div className="grade-group">
+              <span className="toolbar-label">Preparation</span>
+              <div className="grade-tabs" aria-label="Choose preparation information">
+                <button type="button" className={isPriorCourses ? "active" : ""} aria-pressed={isPriorCourses} onClick={() => { setIsPriorCourses(true); setIsOverview(false); }}>Before Grade 7</button>
+              </div>
+            </div>
+            <div className="grade-group">
               <span className="toolbar-label">Middle School</span>
               <div className="grade-tabs" aria-label="Choose a middle school grade">
                 {(["7", "8"] as Grade[]).map((item) => (
-                  <button key={item} type="button" className={!isOverview && grade === item ? "active" : ""} aria-pressed={!isOverview && grade === item} onClick={() => { setGrade(item); setIsOverview(false); }}>Grade {item}</button>
+                  <button key={item} type="button" className={!isPriorCourses && !isOverview && grade === item ? "active" : ""} aria-pressed={!isPriorCourses && !isOverview && grade === item} onClick={() => { setGrade(item); setIsPriorCourses(false); setIsOverview(false); }}>Grade {item}</button>
                 ))}
               </div>
             </div>
@@ -2333,9 +2348,9 @@ export default function App() {
               <span className="toolbar-label">High School</span>
               <div className="grade-tabs" aria-label="Choose a high school grade or view the full plan">
                 {(["9", "10", "11", "12"] as Grade[]).map((item) => (
-                  <button key={item} type="button" className={!isOverview && grade === item ? "active" : ""} aria-pressed={!isOverview && grade === item} onClick={() => { setGrade(item); setIsOverview(false); }}>Grade {item}</button>
+                  <button key={item} type="button" className={!isPriorCourses && !isOverview && grade === item ? "active" : ""} aria-pressed={!isPriorCourses && !isOverview && grade === item} onClick={() => { setGrade(item); setIsPriorCourses(false); setIsOverview(false); }}>Grade {item}</button>
                 ))}
-                <button type="button" className={isOverview ? "active" : ""} aria-pressed={isOverview} onClick={() => setIsOverview(true)}>Overview</button>
+                <button type="button" className={isOverview ? "active" : ""} aria-pressed={isOverview} onClick={() => { setIsPriorCourses(false); setIsOverview(true); }}>Overview</button>
               </div>
             </div>
           </div>
@@ -2350,12 +2365,54 @@ export default function App() {
           {autofillMessage && <p className="autofill-message" role="status">{autofillMessage}</p>}
         </div>
 
-        {isOverview ? (
+        {isPriorCourses ? (
+          <div className="prior-courses-view">
+            <div className="prior-heading">
+              <p className="section-label">Preparation</p>
+              <h2 id="planner-title">Courses completed before grade 7</h2>
+              <p>Record sixth-grade, summer, transfer, or independently completed work. These checks unlock defined prerequisites and courses shown earlier than their typical grade; normal grade-level open-enrollment choices remain available without them.</p>
+            </div>
+            <div className="prior-content">
+              <div className="prior-groups">
+                {priorCourseGroups.map((group) => (
+                  <fieldset className="prior-group" key={group.label}>
+                    <legend>{group.label}</legend>
+                    <div className="check-grid">
+                      {group.courses.map((item) => {
+                        const selected = priorCourses.includes(item.id);
+                        const receivesGrade = priorCourseReceivesGrade(item);
+                        const creditLabel = collegeCreditDetails[item.id] ? "College + HS credit" : item.highSchoolCredit ? "HS credit" : "";
+                        return (
+                          <div className="prior-course-entry" key={item.id}>
+                            <label className="prior-course-check">
+                              <input type="checkbox" checked={selected} onChange={() => togglePriorCourse(item.id)} />
+                              <span>{item.label}{creditLabel && <small>{creditLabel}</small>}</span>
+                            </label>
+                            {selected && receivesGrade && (
+                              <label className="prior-grade-field">
+                                <span>Grade for {item.label}</span>
+                                <select value={priorCourseGrades[item.id] ?? ""} onChange={(event) => updatePriorCourseGrade(item.id, event.target.value as GradeMark | "")}>
+                                  <option value="">No grade entered</option>
+                                  <GradeOptions />
+                                </select>
+                              </label>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  </fieldset>
+                ))}
+              </div>
+              <SourceLinks items={[sources.middleMath, sources.mathSequence, sources.courseCatalogs]} />
+            </div>
+          </div>
+        ) : isOverview ? (
           <PlanOverview
             selections={selections}
             priorCourses={priorCourses}
             priorCourseGrades={priorCourseGrades}
-            onEditGrade={(item) => { setGrade(item); setIsOverview(false); }}
+            onEditGrade={(item) => { setGrade(item); setIsPriorCourses(false); setIsOverview(false); }}
           />
         ) : <>
         <div className="grade-context">
@@ -2452,47 +2509,6 @@ export default function App() {
           </div>
           <SourceLinks items={grade === "7" ? [sources.carsonBooklet, sources.carsonGrade7] : [sources.carsonBooklet, sources.carsonGrade8]} />
         </fieldset>}
-
-        {grade === "7" && (
-          <details className="prior-courses">
-            <summary>Courses completed before grade 7</summary>
-            <div className="prior-content">
-              <p>Record sixth-grade, summer, transfer, or independently completed work. These checks unlock defined prerequisites and courses shown earlier than their typical grade; normal grade-level open-enrollment choices remain available without them.</p>
-              <div className="prior-groups">
-                {priorCourseGroups.map((group) => (
-                  <fieldset className="prior-group" key={group.label}>
-                    <legend>{group.label}</legend>
-                    <div className="check-grid">
-                      {group.courses.map((item) => {
-                        const selected = priorCourses.includes(item.id);
-                        const receivesGrade = priorCourseReceivesGrade(item);
-                        const creditLabel = collegeCreditDetails[item.id] ? "College + HS credit" : item.highSchoolCredit ? "HS credit" : "";
-                        return (
-                          <div className="prior-course-entry" key={item.id}>
-                            <label className="prior-course-check">
-                              <input type="checkbox" checked={selected} onChange={() => togglePriorCourse(item.id)} />
-                              <span>{item.label}{creditLabel && <small>{creditLabel}</small>}</span>
-                            </label>
-                            {selected && receivesGrade && (
-                              <label className="prior-grade-field">
-                                <span>Grade for {item.label}</span>
-                                <select value={priorCourseGrades[item.id] ?? ""} onChange={(event) => updatePriorCourseGrade(item.id, event.target.value as GradeMark | "")}>
-                                  <option value="">No grade entered</option>
-                                  <GradeOptions />
-                                </select>
-                              </label>
-                            )}
-                          </div>
-                        );
-                      })}
-                    </div>
-                  </fieldset>
-                ))}
-              </div>
-              <SourceLinks items={[sources.middleMath, sources.mathSequence, sources.courseCatalogs]} />
-            </div>
-          </details>
-        )}
 
         <section className="course-grid" aria-label={`Grade ${grade} course choices`}>
             {plan.slots.map((slot) => {

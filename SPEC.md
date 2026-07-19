@@ -7,12 +7,13 @@ The planner follows a Fairfax County Public Schools path from **Rachel Carson Mi
 - Middle School: grades 7 and 8 at Rachel Carson
 - High School: grades 9, 10, 11, and 12 at Skyview
 
-Rachel Carson does not have a sixth-grade schedule. Sixth-grade, summer, or transfer coursework appears only in a compact “completed before grade 7” section when it affects placement or prerequisites.
+Rachel Carson does not have a sixth-grade schedule. Sixth-grade, summer, or transfer coursework appears only in a dedicated **Before Grade 7** preparation tab when it affects placement or prerequisites.
 
 Skyview opens in 2026–27 with grades 9 and 10. The grade 11 and 12 charts are future planning based on FCPS sequences; school-specific choices must be updated when Skyview publishes those offerings. The app is a planning aid, not an official registration form or placement decision.
 
 ## 2. Navigation and interface
 
+- Show a **Before Grade 7** tab under a visible **Preparation** heading. This is a prerequisite/placement checklist, not a grade 6 schedule.
 - Show Grade 7 and Grade 8 under a visible **Middle School** heading.
 - Show Grade 9, Grade 10, Grade 11, and Grade 12 under a visible **High School** heading.
 - Show an **Overview** tab after Grade 12 with the complete grade 7–12 plan, entered grades, per-grade GPA estimates, and a prominent projected FCPS transcript GPA in one place.
@@ -22,7 +23,7 @@ Skyview opens in 2026–27 with grades 9 and 10. The grade 11 and 12 charts are 
 - Do not show slot numbers, a slot column, a completion counter, or a slot progress bar.
 - Provide one autofill action that fills every unlocked course choice in prerequisite order, favors the highest available GPA weight, and continues elective sequences such as world languages.
 - Give every core, yearlong-elective, fall-semester, and spring-semester course choice its own lock control. Autofill must preserve locked choices.
-- Keep pre-grade-7 information collapsed until opened.
+- Keep pre-grade-7 information in its own tab, separate from the Grade 7 course chart.
 - Keep course explanations, graduation details, and plan checks compact and collapsible.
 - Use native, keyboard-accessible controls and reflow on mobile without horizontal page scrolling.
 
@@ -136,7 +137,7 @@ Offerings can change because of staffing, enrollment, scheduling conflicts, supp
 4. Rachel Carson's normal choices appear first, with later FCPS levels available in every subject for exceptional placement.
 5. Skyview's opening and future grade-level status is accurately labeled.
 6. Sequential courses enforce their prerequisites from any earlier grade or, for grade 7, the pre-grade-7 completion list.
-7. Grade 7 can represent relevant coursework completed before RCMS.
+7. A dedicated Before Grade 7 tab can represent relevant coursework completed before RCMS without displaying a grade 6 schedule.
 8. Plans persist after a browser refresh.
 9. The chart works on desktop and mobile.
 10. `npm run build` passes.

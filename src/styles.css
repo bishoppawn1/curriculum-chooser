@@ -145,10 +145,12 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 46px); line-height: 1.08; letter-spa
 .format-options span, .format-options small { display: block; }
 .format-options strong { font-size: 14px; line-height: 1.35; }
 .format-options small { margin-top: 3px; color: var(--muted); font-size: 12px; line-height: 1.35; }
-.prior-courses { margin: 10px 18px 14px; border-top: 1px solid var(--border); }
-.prior-courses summary { padding: 11px 0 0; color: var(--primary); cursor: pointer; font-size: 13px; font-weight: 700; }
-.prior-content { padding: 12px 0 2px; }
-.prior-courses p { margin: 0 0 10px; color: var(--muted); font-size: 13px; }
+.prior-courses-view { border-top: 1px solid var(--border); }
+.prior-heading { padding: 16px 18px; background: var(--primary-soft); }
+.prior-heading .section-label { margin: 0 0 4px; }
+.prior-heading h2 { margin: 0; font-size: 22px; }
+.prior-heading > p:last-child { max-width: 900px; margin: 7px 0 0; color: var(--muted); font-size: 13px; line-height: 1.45; }
+.prior-content { padding: 16px 18px 18px; }
 .prior-groups { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 10px; }
 .prior-group { min-width: 0; margin: 0; padding: 9px 10px 10px; border: 1px solid var(--border); border-radius: 5px; }
 .prior-group legend { padding: 0 4px; font-size: 12px; font-weight: 700; }
@@ -257,7 +259,9 @@ footer .source-links { flex: none; margin: 0; }
 
 @media (max-width: 470px) {
   .grade-groups { display: grid; grid-template-columns: 1fr; }
-  .grade-tabs { width: 100%; }
+  .grade-tabs { width: 100%; flex-wrap: wrap; }
+  .grade-tabs button { flex: 1 1 calc((100% - 12px) / 3); padding-inline: 6px; }
+  .prior-heading h2 { font-size: 20px; }
   .prior-groups { grid-template-columns: 1fr; }
   .check-grid { grid-template-columns: 1fr; }
   .overview-grade-heading { align-items: flex-start; flex-direction: column; }

@@ -25,12 +25,32 @@ function saveToBrowser(plan: ReturnType<typeof savedPlan>) {
 describe("planner navigation and structure", () => {
   it("shows grades 7–12 in the correct school groups without a grade 6 schedule", () => {
     render(<App />);
+    const preparation = screen.getByLabelText("Choose preparation information");
     const middle = screen.getByLabelText("Choose a middle school grade");
     const high = screen.getByLabelText("Choose a high school grade or view the full plan");
+    expect(within(preparation).getAllByRole("button").map((button) => button.textContent)).toEqual(["Before Grade 7"]);
     expect(within(middle).getAllByRole("button").map((button) => button.textContent)).toEqual(["Grade 7", "Grade 8"]);
     expect(within(high).getAllByRole("button").map((button) => button.textContent)).toEqual(["Grade 9", "Grade 10", "Grade 11", "Grade 12", "Overview"]);
     expect(screen.queryByRole("button", { name: "Grade 6" })).not.toBeInTheDocument();
     expect(screen.getByRole("region", { name: "Grade 7 course choices" })).toBeInTheDocument();
+    expect(screen.queryByRole("heading", { name: "Courses completed before grade 7" })).not.toBeInTheDocument();
+  });
+
+  it("shows courses completed before grade 7 in its own tab and preserves its entries", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+
+    const priorTab = screen.getByRole("button", { name: "Before Grade 7" });
+    await user.click(priorTab);
+    expect(priorTab).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("region", { name: "Courses completed before grade 7" })).toBeInTheDocument();
+    expect(screen.queryByRole("region", { name: "Grade 7 course choices" })).not.toBeInTheDocument();
+
+    await user.click(screen.getByRole("checkbox", { name: "Advanced Math 6" }));
+    await user.click(screen.getByRole("button", { name: "Grade 7" }));
+    expect(screen.queryByRole("heading", { name: "Courses completed before grade 7" })).not.toBeInTheDocument();
+    await user.click(priorTab);
+    expect(screen.getByRole("checkbox", { name: "Advanced Math 6" })).toBeChecked();
   });
 
   it("marks grades 11 and 12 as future planning and returns from Overview to an editable grade", async () => {
@@ -304,6 +324,19 @@ describe("plan files and supporting information", () => {
     expect(downloadClick).toHaveBeenCalledOnce();
   });
 
+  it("saves the before-grade-7 tab as the active JSON view", async () => {
+    const user = userEvent.setup();
+    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    render(<App />);
+    await user.type(screen.getByLabelText("Name for saved file"), "Student");
+    await user.click(screen.getByRole("button", { name: "Before Grade 7" }));
+    await user.click(screen.getByRole("button", { name: "Save plan as JSON" }));
+
+    const blob = vi.mocked(window.URL.createObjectURL).mock.calls[0][0] as Blob;
+    const exported = JSON.parse(await blob.text());
+    expect(exported.activeView).toBe("before-grade-7");
+  });
+
   it("blocks an unnamed PDF export and points the error to the name field", async () => {
     const user = userEvent.setup();
     const downloadClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
@@ -343,6 +376,25 @@ describe("plan files and supporting information", () => {
     expect(await screen.findByRole("status")).toHaveTextContent("imported-plan.json loaded");
     expect(screen.getByLabelText("Name for saved file")).toHaveValue("Imported Student");
     expect(screen.getByRole("heading", { name: "Grade 7–12 overview" })).toBeInTheDocument();
+  });
+
+  it("restores the before-grade-7 tab from an imported plan", async () => {
+    const user = userEvent.setup();
+    render(<App />);
+    const imported = {
+      ...savedPlan({ priorCourses: ["advancedmath6"] }),
+      formatVersion: 1,
+      title: "Imported preparation",
+      exportedAt: "2026-07-18T12:00:00.000Z",
+      activeView: "before-grade-7",
+    };
+    const file = new File([JSON.stringify(imported)], "imported-preparation.json", { type: "application/json" });
+    const input = document.querySelector<HTMLInputElement>('input[type="file"]');
+    await user.upload(input as HTMLInputElement, file);
+
+    expect(await screen.findByRole("region", { name: "Courses completed before grade 7" })).toBeInTheDocument();
+    expect(screen.getByRole("button", { name: "Before Grade 7" })).toHaveAttribute("aria-pressed", "true");
+    expect(screen.getByRole("checkbox", { name: "Advanced Math 6" })).toBeChecked();
   });
 
   it("shows official source disclosures, plan checks, and accessible GPA bars", () => {
