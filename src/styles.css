@@ -70,11 +70,12 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 46px); line-height: 1.08; letter-spa
 .college-gpa-primary, .college-gpa-secondary { padding: 11px 13px; border: 1px solid var(--border); border-radius: 6px; }
 .college-gpa-primary { min-width: 210px; background: var(--primary-soft); }
 .college-gpa-secondary { min-width: 170px; }
-.college-gpa-primary span, .college-gpa-secondary span, .college-gpa-primary small { display: block; }
-.college-gpa-primary span, .college-gpa-secondary span { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
+.college-gpa-primary > span, .college-gpa-secondary > span, .college-gpa-primary > small { display: block; }
+.college-gpa-primary > span, .college-gpa-secondary > span { color: var(--muted); font-size: 11px; font-weight: 700; letter-spacing: .03em; text-transform: uppercase; }
 .college-gpa-primary strong { display: block; margin-top: 2px; font-size: 38px; letter-spacing: -.04em; }
 .college-gpa-secondary strong { display: block; margin-top: 6px; font-size: 25px; }
 .college-gpa-primary small { color: var(--primary); font-size: 10px; font-weight: 700; }
+.college-gpa-primary .gpa-bar { margin-bottom: 6px; }
 .college-gpa-note { margin: 10px 0 0; color: var(--muted); font-size: 11px; line-height: 1.45; }
 .overview-grades { display: grid; }
 .overview-grade { padding: 16px 18px 18px; border-top: 1px solid var(--border); }

@@ -1863,11 +1863,17 @@ function PlanOverview({
           <div className="college-gpa-primary">
             <span>FCPS weighted GPA</span>
             <strong>{transcriptWeighted.value === null ? "—" : transcriptWeighted.value.toFixed(2)}</strong>
+            <div className="gpa-bar gpa-bar-weighted" role="progressbar" aria-label="Cumulative FCPS weighted GPA on a 5.0 planning scale" aria-valuemin={0} aria-valuemax={5} aria-valuenow={transcriptWeighted.value ?? 0}>
+              <span style={{ width: `${Math.min(100, ((transcriptWeighted.value ?? 0) / 5) * 100)}%` }} />
+            </div>
             <small>Reported GPA estimate</small>
           </div>
           <div className="college-gpa-secondary">
             <span>Unweighted reference</span>
             <strong>{transcriptUnweighted.value === null ? "—" : transcriptUnweighted.value.toFixed(2)}</strong>
+            <div className="gpa-bar" role="progressbar" aria-label="Cumulative unweighted GPA on a 4.0 scale" aria-valuemin={0} aria-valuemax={4} aria-valuenow={transcriptUnweighted.value ?? 0}>
+              <span style={{ width: `${Math.min(100, ((transcriptUnweighted.value ?? 0) / 4) * 100)}%` }} />
+            </div>
           </div>
         </div>
         <p className="college-gpa-note">Includes graded high-school-credit courses completed before grade 7 or planned in grades 7–12; semester courses count as half credit. Colleges receive the transcript, but each college may recalculate GPA using its own rules.</p>

@@ -124,6 +124,14 @@ describe("course versions, grades, and GPA display", () => {
     expect(card).not.toBeNull();
     expect(within(card as HTMLElement).getByText("5.00")).toBeInTheDocument();
     expect(within(card as HTMLElement).getByText("4.00")).toBeInTheDocument();
+    const weightedBar = within(card as HTMLElement).getByRole("progressbar", { name: "Cumulative FCPS weighted GPA on a 5.0 planning scale" });
+    const unweightedBar = within(card as HTMLElement).getByRole("progressbar", { name: "Cumulative unweighted GPA on a 4.0 scale" });
+    expect(weightedBar).toHaveAttribute("aria-valuenow", "5");
+    expect(weightedBar).toHaveAttribute("aria-valuemax", "5");
+    expect(weightedBar.querySelector("span")).toHaveStyle({ width: "100%" });
+    expect(unweightedBar).toHaveAttribute("aria-valuenow", "4");
+    expect(unweightedBar).toHaveAttribute("aria-valuemax", "4");
+    expect(unweightedBar.querySelector("span")).toHaveStyle({ width: "100%" });
     expect(within(card as HTMLElement).getByText(/Colleges receive the transcript/)).toBeInTheDocument();
   });
 
