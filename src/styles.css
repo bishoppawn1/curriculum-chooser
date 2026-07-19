@@ -42,6 +42,9 @@ h1 { margin: 0; font-size: clamp(30px, 5vw, 46px); line-height: 1.08; letter-spa
 .toolbar-actions { display: flex; flex: none; gap: 8px; }
 .autofill-button { min-height: 40px; padding: 0 14px; border: 1px solid var(--primary); border-radius: 6px; background: var(--primary); color: white; cursor: pointer; font-weight: 700; }
 .autofill-button:hover { background: #194f92; }
+.reset-grades-button { min-height: 40px; padding: 0 14px; border: 1px solid var(--primary); border-radius: 6px; background: white; color: var(--primary); cursor: pointer; font-weight: 700; }
+.reset-grades-button:hover:not(:disabled) { background: var(--primary-soft); }
+.reset-grades-button:disabled { border-color: #c7cdd6; background: #f1f3f6; color: #7c8594; cursor: not-allowed; }
 .reset-button { min-height: 40px; padding: 0 14px; border: 1px solid #a23d31; border-radius: 6px; background: white; color: #8b3026; cursor: pointer; font-weight: 700; }
 .reset-button:hover { background: #fff2f0; }
 .autofill-guidance { display: flex; align-items: center; justify-content: space-between; gap: 12px; padding: 9px 18px; border-top: 1px solid var(--border); background: #f4f6f9; }

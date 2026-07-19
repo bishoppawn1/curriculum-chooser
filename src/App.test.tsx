@@ -215,6 +215,44 @@ describe("device-local persistence, reset, and undo", () => {
     expect(screen.getByLabelText("Choose English for grade 7")).toHaveValue("english-7");
   });
 
+  it("resets only grades while preserving courses and locks, then restores grades with Undo", async () => {
+    const selections = emptySelections();
+    selections["7"] = {
+      english: { mode: "yearlong", primary: "english7h", secondary: "", primaryGrade: "A", secondaryGrade: "" },
+    };
+    saveToBrowser(savedPlan({
+      selections,
+      lockedSelections: { "7:english:primary": true },
+      priorCourses: ["algebra1h"],
+      priorCourseGrades: { algebra1h: "B" },
+    }));
+    const user = userEvent.setup();
+    render(<App />);
+
+    const englishColumn = screen.getByRole("heading", { name: "English" }).closest(".course-column");
+    expect(englishColumn).not.toBeNull();
+    const english = within(englishColumn as HTMLElement);
+
+    const resetGrades = screen.getByRole("button", { name: "Reset grades" });
+    expect(resetGrades).toBeEnabled();
+    await user.click(resetGrades);
+    expect(window.confirm).toHaveBeenCalledWith(expect.stringContaining("Clear every entered grade"));
+    expect(screen.getByLabelText("Choose English for grade 7")).toHaveValue("english-7");
+    expect(english.getByLabelText("Grade")).toHaveValue("");
+    expect(screen.getByRole("button", { name: "Unlock English for grade 7" })).toBeInTheDocument();
+    expect(resetGrades).toBeDisabled();
+    await waitFor(() => {
+      const saved = JSON.parse(window.localStorage.getItem("fcps-course-plan-v2") ?? "{}");
+      expect(saved.priorCourseGrades).toEqual({});
+      expect(saved.lockedSelections).toEqual({ "7:english:primary": true });
+    });
+
+    await user.click(screen.getByRole("button", { name: "Undo" }));
+    expect(english.getByLabelText("Grade")).toHaveValue("A");
+    expect(screen.getByRole("button", { name: "Reset grades" })).toBeEnabled();
+    await waitFor(() => expect(JSON.parse(window.localStorage.getItem("fcps-course-plan-v2") ?? "{}").priorCourseGrades).toEqual({ algebra1h: "B" }));
+  });
+
   it("switches diploma requirements and allows the change to be undone", async () => {
     const user = userEvent.setup();
     render(<App />);

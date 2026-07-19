@@ -2045,6 +2045,8 @@ export default function App() {
   const requiredCreditTotal = diplomaType === "advanced" ? 26 : 22;
   const { issues, confirmations } = planChecks(diplomaType, selections, eligibilityChecks);
   const planCheckCount = issues.length + confirmations.length;
+  const hasEnteredGrades = Object.values(priorCourseGrades).some(Boolean)
+    || gradeOrder.some((planGrade) => Object.values(selections[planGrade]).some((value) => value.primaryGrade || value.secondaryGrade));
 
   function rememberCurrentPlan() {
     const snapshot: PlannerSnapshot = {
@@ -2238,6 +2240,22 @@ export default function App() {
     }
   }
 
+  function resetGrades() {
+    if (!window.confirm("Clear every entered grade? Course selections, elective formats, locks, and checklist answers will stay in place.")) return;
+
+    rememberCurrentPlan();
+    setSelections((current) => {
+      const next = structuredClone(current);
+      for (const planGrade of gradeOrder) {
+        for (const [slotId, value] of Object.entries(next[planGrade])) {
+          next[planGrade][slotId] = { ...value, primaryGrade: "", secondaryGrade: "" };
+        }
+      }
+      return next;
+    });
+    setPriorCourseGrades({});
+  }
+
   function resetPlan() {
     if (!window.confirm("Reset the entire course plan? This clears all course selections, grades, locks, and checklist answers saved on this device.")) return;
 
@@ -2310,6 +2328,7 @@ export default function App() {
           </div>
           <div className="toolbar-actions">
             <button type="button" className="autofill-button" onClick={autofillPlan}>Autofill highest-GPA path</button>
+            <button type="button" className="reset-grades-button" disabled={!hasEnteredGrades} onClick={resetGrades}>Reset grades</button>
             <button type="button" className="reset-button" onClick={resetPlan}>Reset plan</button>
           </div>
         </div>
