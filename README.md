@@ -7,21 +7,6 @@ A standalone React and Vite app for planning an FCPS course path from Rachel Car
 
 Skyview opens for grades 9 and 10 in 2026–27. Grades 11 and 12 are future-planning charts and should be checked against Skyview's published offerings as the school phases in those grade levels.
 
-## Run locally
-
-```bash
-npm install
-npm run dev
-```
-
-Open the local address shown by Vite.
-
-## Production build
-
-```bash
-npm run build
-```
-
 The deployable static site is written to `dist/` and can be hosted by any static web server.
 
 ## Course prerequisites
