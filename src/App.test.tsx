@@ -265,14 +265,35 @@ describe("device-local persistence, reset, and undo", () => {
 });
 
 describe("plan files and supporting information", () => {
-  it("requires a name for JSON export and exposes JSON, PDF, and load controls", async () => {
-    const user = userEvent.setup();
+  it("keeps the matching JSON and PDF save buttons clickable without a name", () => {
     render(<App />);
-    expect(screen.getByRole("button", { name: "Save plan as JSON" })).toBeDisabled();
-    expect(screen.getByRole("button", { name: "Save plan as PDF" })).toBeEnabled();
-    expect(screen.getByRole("button", { name: "Load plan" })).toBeEnabled();
-    await user.type(screen.getByLabelText("Name for saved file"), "Eric Bishop");
     expect(screen.getByRole("button", { name: "Save plan as JSON" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save plan as JSON" })).toHaveClass("plan-save-button");
+    expect(screen.getByRole("button", { name: "Save plan as PDF" })).toBeEnabled();
+    expect(screen.getByRole("button", { name: "Save plan as PDF" })).toHaveClass("plan-save-button");
+    expect(screen.getByRole("button", { name: "Load plan" })).toBeEnabled();
+  });
+
+  it("blocks an unnamed JSON export and points the error to the name field", async () => {
+    const user = userEvent.setup();
+    const downloadClick = vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(() => {});
+    render(<App />);
+    const name = screen.getByLabelText("Name for saved file");
+    const saveJson = screen.getByRole("button", { name: "Save plan as JSON" });
+
+    await user.click(saveJson);
+
+    expect(screen.getByRole("alert")).toHaveTextContent("Enter your name before saving the plan as JSON.");
+    expect(name).toHaveFocus();
+    expect(name).toHaveAttribute("aria-invalid", "true");
+    expect(name).toHaveAttribute("aria-describedby", "plan-name-error");
+    expect(window.URL.createObjectURL).not.toHaveBeenCalled();
+
+    await user.type(name, "Eric");
+    expect(screen.queryByRole("alert")).not.toBeInTheDocument();
+    await user.click(saveJson);
+    expect(window.URL.createObjectURL).toHaveBeenCalledOnce();
+    expect(downloadClick).toHaveBeenCalledOnce();
   });
 
   it("blocks an unnamed PDF export and points the error to the name field", async () => {

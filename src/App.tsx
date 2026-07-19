@@ -2172,6 +2172,13 @@ export default function App() {
   }
 
   function savePlanAsJson() {
+    if (!planFileStem(studentName)) {
+      setNameError("Enter your name before saving the plan as JSON.");
+      nameInputRef.current?.focus();
+      return;
+    }
+
+    setNameError("");
     const savedAt = new Date();
     const fileName = planFileName(studentName, savedAt);
     const contents = JSON.stringify(exportedPlan(studentName, selections, lockedSelections, priorCourses, priorCourseGrades, diplomaType, eligibilityChecks, grade, isOverview, savedAt), null, 2);
@@ -2294,8 +2301,8 @@ export default function App() {
             {nameError && <span className="plan-name-error" id="plan-name-error" role="alert">{nameError}</span>}
           </label>
           <button type="button" className="undo-button" disabled={!undoStack.length} onClick={undoLastChange}>Undo</button>
-          <button type="button" className="json-save-button" disabled={!planFileStem(studentName)} onClick={savePlanAsJson}>Save plan as JSON</button>
-          <button type="button" className="print-button" onClick={savePlanAsPdf}>Save plan as PDF</button>
+          <button type="button" className="plan-save-button" onClick={savePlanAsJson}>Save plan as JSON</button>
+          <button type="button" className="plan-save-button" onClick={savePlanAsPdf}>Save plan as PDF</button>
           <input ref={loadInputRef} className="sr-only" type="file" accept=".json,.pdf,application/json,application/pdf" onChange={loadPlanFromFile} />
           <button type="button" className="load-button" onClick={() => loadInputRef.current?.click()}>Load plan</button>
           {loadMessage && <p className={`load-message load-message-${loadMessage.kind}`} role="status">{loadMessage.text}</p>}
